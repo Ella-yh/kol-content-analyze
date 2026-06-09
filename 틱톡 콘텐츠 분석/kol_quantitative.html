@@ -183,14 +183,15 @@ a.vlink:hover{text-decoration:underline;}
 @media(max-width:700px){.chart-duo{grid-template-columns:1fr;}}
 
 /* ── 차트 슬라이더 ── */
-.chart-duo-box{position:relative;}
-.chart-canvas-wrap{position:relative;height:260px;margin-bottom:14px;}
-.chart-sliders{display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px solid #f0f1f7;}
-.slider-row{display:flex;align-items:center;gap:10px;font-size:11px;}
-.slider-label{width:34px;color:#888;font-weight:600;flex-shrink:0;}
-.slider-pair{flex:1;display:flex;flex-direction:column;gap:3px;}
-.slider-pair input[type=range]{width:100%;height:3px;accent-color:var(--accent);cursor:pointer;}
-.slider-vals{width:130px;color:var(--accent);font-size:10px;font-weight:600;text-align:right;flex-shrink:0;white-space:nowrap;}
+.chart-canvas-wrap{position:relative;height:260px;margin-bottom:12px;}
+.chart-sliders{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid #f0f1f7;}
+.slider-group{display:flex;align-items:flex-start;gap:8px;}
+.slider-group-label{width:34px;color:#888;font-size:11px;font-weight:600;flex-shrink:0;padding-top:3px;}
+.slider-minmax{flex:1;display:flex;flex-direction:column;gap:3px;}
+.slider-line{display:flex;align-items:center;gap:6px;}
+.slider-bound-label{width:22px;font-size:10px;color:#aaa;flex-shrink:0;text-align:right;}
+.slider-line input[type=range]{flex:1;height:3px;accent-color:var(--accent);cursor:pointer;margin:0;}
+.slider-bound-val{width:58px;font-size:10px;color:var(--accent);font-weight:600;text-align:right;flex-shrink:0;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -349,21 +350,35 @@ a.vlink:hover{text-decoration:underline;}
           <div class="chart-duo-title">Instagram</div>
           <div class="chart-canvas-wrap"><canvas id="chartIG"></canvas></div>
           <div class="chart-sliders">
-            <div class="slider-row">
-              <span class="slider-label">조회수</span>
-              <div class="slider-pair">
-                <input type="range" id="igViewsMin" oninput="onSlider('IG')">
-                <input type="range" id="igViewsMax" oninput="onSlider('IG')">
+            <div class="slider-group">
+              <span class="slider-group-label">조회수</span>
+              <div class="slider-minmax">
+                <div class="slider-line">
+                  <span class="slider-bound-label">최소</span>
+                  <input type="range" id="igViewsMin" oninput="onSlider('IG')">
+                  <span class="slider-bound-val" id="igViewsMinV"></span>
+                </div>
+                <div class="slider-line">
+                  <span class="slider-bound-label">최대</span>
+                  <input type="range" id="igViewsMax" oninput="onSlider('IG')">
+                  <span class="slider-bound-val" id="igViewsMaxV"></span>
+                </div>
               </div>
-              <span class="slider-vals" id="igViewsVals"></span>
             </div>
-            <div class="slider-row">
-              <span class="slider-label">ER</span>
-              <div class="slider-pair">
-                <input type="range" id="igErMin" step="0.01" oninput="onSlider('IG')">
-                <input type="range" id="igErMax" step="0.01" oninput="onSlider('IG')">
+            <div class="slider-group">
+              <span class="slider-group-label">ER</span>
+              <div class="slider-minmax">
+                <div class="slider-line">
+                  <span class="slider-bound-label">최소</span>
+                  <input type="range" id="igErMin" step="0.01" oninput="onSlider('IG')">
+                  <span class="slider-bound-val" id="igErMinV"></span>
+                </div>
+                <div class="slider-line">
+                  <span class="slider-bound-label">최대</span>
+                  <input type="range" id="igErMax" step="0.01" oninput="onSlider('IG')">
+                  <span class="slider-bound-val" id="igErMaxV"></span>
+                </div>
               </div>
-              <span class="slider-vals" id="igErVals"></span>
             </div>
           </div>
         </div>
@@ -371,21 +386,35 @@ a.vlink:hover{text-decoration:underline;}
           <div class="chart-duo-title">TikTok</div>
           <div class="chart-canvas-wrap"><canvas id="chartTT"></canvas></div>
           <div class="chart-sliders">
-            <div class="slider-row">
-              <span class="slider-label">조회수</span>
-              <div class="slider-pair">
-                <input type="range" id="ttViewsMin" oninput="onSlider('TT')">
-                <input type="range" id="ttViewsMax" oninput="onSlider('TT')">
+            <div class="slider-group">
+              <span class="slider-group-label">조회수</span>
+              <div class="slider-minmax">
+                <div class="slider-line">
+                  <span class="slider-bound-label">최소</span>
+                  <input type="range" id="ttViewsMin" oninput="onSlider('TT')">
+                  <span class="slider-bound-val" id="ttViewsMinV"></span>
+                </div>
+                <div class="slider-line">
+                  <span class="slider-bound-label">최대</span>
+                  <input type="range" id="ttViewsMax" oninput="onSlider('TT')">
+                  <span class="slider-bound-val" id="ttViewsMaxV"></span>
+                </div>
               </div>
-              <span class="slider-vals" id="ttViewsVals"></span>
             </div>
-            <div class="slider-row">
-              <span class="slider-label">ER</span>
-              <div class="slider-pair">
-                <input type="range" id="ttErMin" step="0.01" oninput="onSlider('TT')">
-                <input type="range" id="ttErMax" step="0.01" oninput="onSlider('TT')">
+            <div class="slider-group">
+              <span class="slider-group-label">ER</span>
+              <div class="slider-minmax">
+                <div class="slider-line">
+                  <span class="slider-bound-label">최소</span>
+                  <input type="range" id="ttErMin" step="0.01" oninput="onSlider('TT')">
+                  <span class="slider-bound-val" id="ttErMinV"></span>
+                </div>
+                <div class="slider-line">
+                  <span class="slider-bound-label">최대</span>
+                  <input type="range" id="ttErMax" step="0.01" oninput="onSlider('TT')">
+                  <span class="slider-bound-val" id="ttErMaxV"></span>
+                </div>
               </div>
-              <span class="slider-vals" id="ttErVals"></span>
             </div>
           </div>
         </div>
@@ -813,12 +842,11 @@ function initSliders(prefix, rows){
 
 function updateSliderVals(prefix){
   const p = prefix.toLowerCase();
-  const vMin = +document.getElementById(p+'ViewsMin').value;
-  const vMax = +document.getElementById(p+'ViewsMax').value;
-  const eMin = +document.getElementById(p+'ErMin').value;
-  const eMax = +document.getElementById(p+'ErMax').value;
-  document.getElementById(p+'ViewsVals').textContent = `${fmtN(Math.round(vMin))} ~ ${fmtN(Math.round(vMax))}`;
-  document.getElementById(p+'ErVals').textContent    = `${eMin.toFixed(2)}% ~ ${eMax.toFixed(2)}%`;
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  set(p+'ViewsMinV', fmtN(Math.round(+document.getElementById(p+'ViewsMin').value)));
+  set(p+'ViewsMaxV', fmtN(Math.round(+document.getElementById(p+'ViewsMax').value)));
+  set(p+'ErMinV',  (+document.getElementById(p+'ErMin').value).toFixed(2)+'%');
+  set(p+'ErMaxV',  (+document.getElementById(p+'ErMax').value).toFixed(2)+'%');
 }
 
 function onSlider(prefix){
