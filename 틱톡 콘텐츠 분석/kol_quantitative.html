@@ -764,6 +764,7 @@ function buildPlatChart(canvasId, pt, data){
     }]},
     options:{
       responsive:true,
+      maintainAspectRatio:false,
       plugins:{
         legend:{display:false},
         tooltip:{callbacks:{label:c=>{
