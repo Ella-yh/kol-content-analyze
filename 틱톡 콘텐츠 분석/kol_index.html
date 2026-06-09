@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KOL Content Analyze</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f7f8ff;
+  --card1: #e8ecff;
+  --card2: #ede8ff;
+  --card3: #e8f0ff;
+  --navy: #1a1a40;
+  --sub: #555577;
+  --accent: #5b5bd6;
+  --accent2: #7c6af7;
+  --white: #ffffff;
+  --radius: 24px;
+}
+
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, 'Apple SD Gothic Neo', 'Pretendard', 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--navy); min-height: 100vh; }
+
+/* ── 헤더 ── */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(247,248,255,0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(91,91,214,0.1);
+  padding: 0 40px;
+  height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo { font-size: 15px; font-weight: 800; color: var(--accent); letter-spacing: -0.3px; }
+.logo span { color: var(--navy); }
+
+/* ── 히어로 ── */
+.hero {
+  text-align: center;
+  padding: 80px 24px 56px;
+}
+.hero-eyebrow {
+  display: inline-block;
+  font-size: 13px; font-weight: 600;
+  color: var(--accent);
+  background: rgba(91,91,214,0.1);
+  padding: 5px 14px; border-radius: 99px;
+  margin-bottom: 20px;
+  letter-spacing: 0.3px;
+}
+.hero h1 {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 800; line-height: 1.15;
+  letter-spacing: -1px;
+  color: var(--navy);
+  margin-bottom: 16px;
+}
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p {
+  font-size: 16px; color: var(--sub); line-height: 1.7;
+  max-width: 480px; margin: 0 auto;
+}
+
+/* ── 서비스 라인업 ── */
+.section-label {
+  text-align: center;
+  font-size: 13px; font-weight: 600;
+  color: var(--sub); letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.section-title {
+  text-align: center;
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 800; letter-spacing: -0.5px;
+  margin-bottom: 40px;
+}
+
+/* ── 카드 그리드 ── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+@media (max-width: 1000px) {
+  .cards { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .cards { grid-template-columns: 1fr; }
+  .hero { padding: 56px 20px 40px; }
+}
+
+/* ── 카드 ── */
+.card {
+  background: var(--card1);
+  border-radius: var(--radius);
+  padding: 32px 28px 28px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: default;
+  min-height: 260px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(91,91,214,0.13); }
+.card-2 { background: var(--card2); }
+.card-3 { background: var(--card3); }
+
+.card-eyebrow {
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  opacity: 0.7; margin-bottom: 8px;
+}
+.card-title {
+  font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
+  color: var(--navy); margin-bottom: 10px; line-height: 1.2;
+}
+.card-desc {
+  font-size: 14px; color: var(--sub); line-height: 1.65;
+}
+
+/* 카드 아이콘 영역 */
+.card-icon {
+  font-size: 52px; line-height: 1;
+  position: absolute; right: 24px; bottom: 28px;
+  opacity: 0.65;
+  filter: drop-shadow(0 4px 12px rgba(91,91,214,0.2));
+  pointer-events: none;
+}
+
+/* 화살표 버튼 */
+.card-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(91,91,214,0.15);
+  color: var(--accent); font-size: 16px;
+  border: none; cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  margin-top: 20px; align-self: flex-start;
+  text-decoration: none;
+}
+.card-btn:hover { background: var(--accent); color: #fff; transform: scale(1.08); }
+
+/* 비활성 카드 */
+.card.disabled { opacity: 0.6; cursor: not-allowed; }
+.card.disabled:hover { transform: none; box-shadow: none; }
+.coming-soon {
+  display: inline-block;
+  font-size: 11px; font-weight: 700;
+  background: rgba(91,91,214,0.12); color: var(--accent);
+  padding: 3px 9px; border-radius: 99px;
+  margin-top: 10px;
+}
+
+/* ── 데이터 추출 서브메뉴 ── */
+.sub-menu {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  animation: slideDown 0.2s ease;
+}
+.sub-menu.open { display: flex; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sub-link {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.65);
+  border: 1px solid rgba(91,91,214,0.15);
+  border-radius: 12px;
+  padding: 11px 16px;
+  text-decoration: none;
+  color: var(--navy);
+  font-size: 13px; font-weight: 600;
+  transition: all 0.15s;
+}
+.sub-link:hover {
+  background: var(--white);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateX(3px);
+}
+.sub-link .sub-icon {
+  font-size: 18px; line-height: 1;
+}
+.sub-link .sub-arrow {
+  margin-left: auto;
+  font-size: 13px; opacity: 0.4;
+}
+
+/* ── 카드 클릭 영역 ── */
+.card.clickable { cursor: pointer; }
+.card-header { flex: 1; }
+
+/* ── 푸터 ── */
+footer {
+  text-align: center;
+  padding: 32px 24px;
+  font-size: 12px; color: #aaa;
+  border-top: 1px solid rgba(91,91,214,0.08);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">KOL<span> Content Analyze</span></div>
+</header>
+
+<section class="hero">
+  <div class="hero-eyebrow">TikTok KOL 분석 도구</div>
+  <h1>Project<br><em>경쟁사 KOL 콘텐츠 </em> 인사이트</h1>
+  <p>데이터 추출부터 정량·정성 분석까지,<br>KOL 콘텐츠 성과를 한눈에 파악하세요.</p>
+</section>
+
+
+<div class="cards">
+
+  <!-- 카드 1: 데이터 추출 -->
+  <div class="card clickable" id="card1" onclick="toggleExtract()">
+    <div class="card-header">
+      <div class="card-title">데이터 추출</div>
+      <div class="card-desc">KOL 영상 데이터를<br>빠르게 수집하고 정리하세요.</div>
+    </div>
+
+    <div class="sub-menu" id="subMenu">
+      <a class="sub-link" href="exolyt_parser.html#tab1" onclick="event.stopPropagation()">
+        <span class="sub-icon">🃏</span>
+        Exolyt 카드뷰 파싱
+        <span class="sub-arrow">→</span>
+      </a>
+      <a class="sub-link" href="exolyt_parser.html#tab2" onclick="event.stopPropagation()">
+        <span class="sub-icon">📋</span>
+        Exolyt 폴더 파싱
+        <span class="sub-arrow">→</span>
+      </a>
+      <a class="sub-link" href="exolyt_parser.html#tab3" onclick="event.stopPropagation()">
+        <span class="sub-icon">📊</span>
+        Nox 파싱
+        <span class="sub-arrow">→</span>
+      </a>
+    </div>
+
+    <button class="card-btn" id="card1Btn" title="열기">↓</button>
+    <div class="card-icon">📊</div>
+  </div>
+
+  <!-- 카드 2: 정량 분석 -->
+  <div class="card card-2 clickable" onclick="window.location.href='kol_quantitative.html'">
+    <div class="card-header">
+      <div class="card-title">정량 분석</div>
+      <div class="card-desc">조회수, ER% 등<br>수치 기반 성과 분석을 제공해요.</div>
+    </div>
+    <button class="card-btn" title="열기">→</button>
+    <div class="card-icon">📈</div>
+  </div>
+
+  <!-- 카드 3: 정성 분석 -->
+  <div class="card card-3 disabled">
+    <div class="card-header">
+      <div class="card-title">정성 분석</div>
+      <div class="card-desc">콘텐츠 스트럭쳐와<br>정성적인 인사이트를 분석해요.</div>
+      <div class="coming-soon">Coming Soon</div>
+    </div>
+    <div class="card-icon">💡</div>
+  </div>
+
+  <!-- 카드 4: 작업 프로세스 -->
+  <div class="card clickable" style="background:#f0f4ff;" onclick="window.location.href='kol_process.html'">
+    <div class="card-header">
+      <div class="card-title">작업 프로세스</div>
+      <div class="card-desc">데이터 추출·분석 기준을<br>기록하고 관리하세요.</div>
+    </div>
+    <button class="card-btn" title="열기">→</button>
+    <div class="card-icon">📋</div>
+  </div>
+
+</div>
+
+<footer>© 2026 KOL Content Analyze · Built with Claude</footer>
+
+<script>
+let extractOpen = false;
+
+function toggleExtract() {
+  extractOpen = !extractOpen;
+  const menu = document.getElementById('subMenu');
+  const btn  = document.getElementById('card1Btn');
+  menu.classList.toggle('open', extractOpen);
+  btn.textContent = extractOpen ? '↑' : '↓';
+  btn.style.background = extractOpen ? 'var(--accent)' : '';
+  btn.style.color = extractOpen ? '#fff' : '';
+}
+</script>
+</body>
+</html>

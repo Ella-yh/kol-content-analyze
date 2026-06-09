@@ -1,0 +1,5 @@
+{
+  "redirects": [
+    { "source": "/", "destination": "/kol_index.html", "permanent": false }
+  ]
+}

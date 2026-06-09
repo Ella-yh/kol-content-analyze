@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TikTok 데이터 파서</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f6fa; color: #222; }
+
+.header {
+  background: #fff; border-bottom: 1px solid #e8eaf0;
+  padding: 0 24px;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-top {
+  display: flex; align-items: center; gap: 12px;
+  height: 50px;
+}
+.header h1 { font-size: 15px; font-weight: 700; color: #111; white-space: nowrap; }
+.home-btn {
+  display: inline-flex; align-items: center;
+  font-size: 13px; font-weight: 600; color: #5c6bc0;
+  text-decoration: none; white-space: nowrap;
+  padding: 5px 12px; border-radius: 7px;
+  background: #f0f1f7; transition: background 0.15s;
+}
+.home-btn:hover { background: #e3e5f0; }
+
+.tabs { display: flex; gap: 4px; padding-bottom: 8px; }
+.tab-btn {
+  padding: 7px 16px; border-radius: 7px; border: 1px solid #dde1ea;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  background: #f5f6fa; color: #666; transition: all 0.15s;
+}
+.tab-btn.active { background: #5c6bc0; color: #fff; border-color: #5c6bc0; }
+.tab-btn:not(.active):hover { background: #eeeff6; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.main { padding: 20px 28px; }
+
+.input-section {
+  background: #fff; border: 1px solid #e8eaf0;
+  border-radius: 10px; padding: 18px; margin-bottom: 16px;
+}
+.input-section label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 5px; }
+.hint { font-size: 12px; color: #888; margin-bottom: 9px; line-height: 1.6; }
+
+.code-box {
+  background: #1e1e2e; color: #a6e3a1; font-family: 'Courier New', monospace;
+  font-size: 12px; padding: 10px 14px; border-radius: 7px; margin: 8px 0 10px;
+  line-height: 1.6; white-space: pre; overflow-x: auto; cursor: pointer;
+  border: 1px solid #333;
+}
+.code-box:hover { border-color: #5c6bc0; }
+.code-label { font-size: 11px; color: #888; margin-bottom: 3px; }
+
+textarea {
+  width: 100%; border: 1px solid #dde1ea; border-radius: 7px;
+  padding: 10px; font-size: 12px; font-family: 'Courier New', monospace;
+  color: #333; resize: vertical; outline: none; transition: border-color 0.15s;
+}
+textarea:focus { border-color: #5c6bc0; }
+textarea::placeholder { color: #bbb; }
+
+.btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+button { padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+.btn-primary { background: #5c6bc0; color: #fff; }
+.btn-primary:hover { background: #4a5ab0; }
+.btn-secondary { background: #f0f1f7; color: #444; }
+.btn-secondary:hover { background: #e3e5f0; }
+.btn-success { background: #e8f5e9; color: #2e7d32; }
+.btn-success:hover { background: #d0edd2; }
+.btn-save { background: #5c6bc0; color: #fff; }
+.btn-save:hover { background: #4a5ab0; }
+.brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.brand-row label { font-size: 13px; font-weight: 600; color: #444; white-space: nowrap; }
+.brand-input {
+  flex: 1; max-width: 280px; border: 1px solid #dde1ea; border-radius: 7px;
+  padding: 7px 11px; font-size: 13px; color: #333; outline: none;
+  transition: border-color 0.15s; background: #fafbff;
+}
+.brand-input:focus { border-color: #5c6bc0; background: #fff; }
+.brand-input::placeholder { color: #bbb; }
+.platform-toggle { display:flex; gap:4px; }
+.plat-btn {
+  padding: 4px 14px; border-radius: 6px; font-size: 12px; font-weight: 700;
+  cursor: pointer; border: 1px solid #dde1ea;
+  background: #f5f6fa; color: #888; transition: all 0.15s;
+}
+.plat-btn.tt.active { background: #e0f2f1; color: #00695c; border-color: #00695c; }
+.plat-btn.ig.active { background: #fce4ec; color: #c2185b; border-color: #e91e63; }
+.plat-btn:not(.active):hover { background: #eeeff6; }
+
+
+.stats-bar { display: flex; gap: 18px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+.stat { font-size: 13px; color: #555; }
+.stat strong { color: #111; font-weight: 700; }
+
+.result-section { background: #fff; border: 1px solid #e8eaf0; border-radius: 10px; overflow: hidden; }
+.result-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; border-bottom: 1px solid #f0f1f7; background: #fafbff; flex-wrap: wrap; gap: 8px;
+}
+.result-toolbar-title { font-size: 13px; font-weight: 600; color: #333; }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+thead th {
+  background: #f5f6fa; border-bottom: 2px solid #e8eaf0;
+  padding: 9px 12px; text-align: left; font-weight: 600; color: #444;
+  white-space: nowrap; cursor: pointer; user-select: none;
+}
+thead th:hover { background: #eeeff6; }
+.si { margin-left: 3px; color: #bbb; font-size: 10px; }
+thead th.asc .si::after { content: '▲'; color: #5c6bc0; }
+thead th.desc .si::after { content: '▼'; color: #5c6bc0; }
+thead th:not(.asc):not(.desc) .si::after { content: '↕'; }
+
+tbody tr { border-bottom: 1px solid #f0f1f7; }
+tbody tr:hover { background: #fafbff; }
+tbody td { padding: 8px 12px; vertical-align: middle; }
+
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+.er-high { color: #2e7d32; font-weight: 700; }
+.er-mid { color: #e65100; }
+.er-low { color: #999; }
+.promo-y { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; background: #e3f2fd; color: #1565c0; }
+.promo-n { color: #ccc; font-size: 12px; }
+.caption-cell { max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333; cursor: help; }
+.handle { color: #5c6bc0; font-size: 12px; white-space: nowrap; }
+a.vlink { color: #5c6bc0; font-size: 11px; text-decoration: none; opacity: 0.7; }
+a.vlink:hover { opacity: 1; text-decoration: underline; }
+
+.error-banner {
+  background: #fff3e0; border: 1px solid #ffe0b2; border-radius: 7px;
+  padding: 10px 14px; font-size: 12.5px; color: #e65100;
+  margin-top: 10px; white-space: pre-line; display: none;
+}
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: #323232; color: #fff; padding: 10px 18px; border-radius: 8px;
+  font-size: 13px; font-weight: 500;
+  opacity: 0; transform: translateY(8px); transition: all 0.25s;
+  pointer-events: none; z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+.divider { border: none; border-top: 1px solid #f0f1f7; margin: 14px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <a href="kol_index.html" class="home-btn" title="홈으로">← 홈</a>
+    <h1>데이터 추출</h1>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tabBtn1" onclick="switchTab(1)">🃏 Exolyt 카드뷰 파싱</button>
+    <button class="tab-btn"        id="tabBtn2" onclick="switchTab(2)">📋 Exolyt 폴더 파싱</button>
+    <button class="tab-btn"        id="tabBtn3" onclick="switchTab(3)">📊 Nox 파싱</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══════════════ VER 1 ══════════════ -->
+  <div id="tab1" class="tab-content active">
+    <div class="input-section">
+      <label>Ver1 — Exolyt 카드뷰 데이터 붙여넣기</label>
+      <div class="brand-row">
+        <label>브랜드명</label>
+        <input type="text" class="brand-input" id="v1Brand" placeholder="예: L'Oreal, Dove, Pantene">
+      </div>
+      <div class="brand-row" style="margin-top:-2px;margin-bottom:12px">
+        <label>매체</label>
+        <div class="platform-toggle">
+          <button class="plat-btn tt active" id="v1PlatTT" onclick="setPlatform('v1','TikTok')">TT</button>
+          <button class="plat-btn ig"        id="v1PlatIG" onclick="setPlatform('v1','Instagram')">IG</button>
+        </div>
+      </div>
+      <div class="hint">exolyt.com 카드 화면에서 영상 영역 드래그 → Ctrl+C → 붙여넣기<br>@계정명까지 포함해 복사해주세요. 붙여넣으면 자동 파싱됩니다.</div>
+      <textarea id="v1Input" rows="8" placeholder="예시:&#10;프로모션됨&#10;25.6M&#10;39.0K&#10;0.2%&#10;0:59&#10;🇦🇪&#10;AE&#10;2026년 5월 4일 월&#10;The best haircare...&#10;@hussa.502"></textarea>
+      <div id="v1Error" class="error-banner"></div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="v1Parse()">파싱 확인</button>
+        <button class="btn-secondary" onclick="v1Clear()">초기화</button>
+      </div>
+    </div>
+
+    <div id="v1Result" style="display:none">
+      <div class="stats-bar">
+        <div class="stat">총 <strong id="v1Count">0</strong>개</div>
+        <div class="stat">프로모션 <strong id="v1Promo">0</strong>개</div>
+        <div class="stat">평균 ER <strong id="v1ER">—</strong></div>
+        <div class="stat">평균 조회수 <strong id="v1Views">—</strong></div>
+      </div>
+      <div class="result-section">
+        <div class="result-toolbar">
+          <span class="result-toolbar-title">파싱 결과</span>
+          <div class="btn-row" style="margin:0">
+            <button class="btn-secondary" onclick="v1DownloadCSV()">⬇ CSV</button>
+            <button class="btn-save" onclick="saveToQuant('v1')">📥 정량 분석 데이터로 저장</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="v1Head"><tr>
+              <th onclick="doV1Sort(0)" style="text-align:right">조회수<span class="si"></span></th>
+              <th onclick="doV1Sort(1)" style="text-align:right">좋아요수<span class="si"></span></th>
+              <th onclick="doV1Sort(2)" style="text-align:right">ER%<span class="si"></span></th>
+              <th onclick="doV1Sort(3)" style="text-align:right">영상 초수<span class="si"></span></th>
+              <th onclick="doV1Sort(4)">국가<span class="si"></span></th>
+              <th onclick="doV1Sort(5)">업로드일<span class="si"></span></th>
+              <th>피드문구</th>
+              <th onclick="doV1Sort(7)">핸들<span class="si"></span></th>
+              <th onclick="doV1Sort(8)">프로모션여부<span class="si"></span></th>
+            </tr></thead>
+            <tbody id="v1Body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ VER 3 ══════════════ -->
+  <div id="tab3" class="tab-content">
+    <div class="input-section">
+      <label>Ver3 — Nox 데이터 붙여넣기</label>
+      <div class="brand-row">
+        <label>브랜드명</label>
+        <input type="text" class="brand-input" id="v3Brand" placeholder="예: L'Oreal, Dove, Pantene">
+      </div>
+      <div class="brand-row" style="margin-top:-2px;margin-bottom:12px">
+        <label>매체</label>
+        <div class="platform-toggle">
+          <button class="plat-btn tt active" id="v3PlatTT" onclick="setPlatform('v3','TikTok')">TT</button>
+          <button class="plat-btn ig"        id="v3PlatIG" onclick="setPlatform('v3','Instagram')">IG</button>
+        </div>
+      </div>
+      <div class="hint">nox.com 영상 목록 페이지에서 F12 콘솔 스크립트로 추출한 TSV를 붙여넣어 주세요.<br>헤더 포함 여부 무관. 붙여넣으면 자동 파싱됩니다.</div>
+
+      <label style="margin-top:4px">📎 F12 콘솔 스크립트 <span style="font-weight:400;color:#888">(nox.com 영상 목록 페이지에서 실행)</span></label>
+      <div class="code-label">▼ 아래 코드를 복사 → 브라우저 F12 → Console 탭에 붙여넣고 Enter</div>
+      <div class="code-box" onclick="copyNoxScript()" title="클릭하면 복사됩니다">{const pu=s=>{if(!s||s==="0"||s==="-"||s.includes("%"))return s;let n=parseFloat(s.replace(/,/g,""));if(s.includes("만"))return Math.round(n*10000);if(s.includes("억"))return Math.round(n*100000000);if(s.includes("천"))return Math.round(n*1000);return n;};let csv="No\tTitle\tChannel\tDate\tViews\tLikes\tComments\tShares\tSaves\tFollowers\tLink\n";document.querySelectorAll('.youtube-video-item').forEach((row,i)=>{try{const tEl=row.querySelector('.video-title');const title=tEl?.innerText?.trim().replace(/\t|\n/g," ")||"-";const noxLink=tEl?.getAttribute('href')||"";let url=noxLink.startsWith('http')?noxLink:"https://www.tiktok.com"+noxLink;const channel=row.querySelector('.title')?.innerText?.trim()||"-";const date=row.querySelector('.publish-text')?.innerText?.trim()||"-";let d={v:"0",l:"0",c:"0",s:"0",m:"0",f:"0"};row.querySelectorAll('.data-text').forEach(el=>{const icon=el.previousElementSibling?.className||"";const val=el.innerText.trim();if(icon.includes('play'))d.v=val;else if(icon.includes('thumbs-up'))d.l=val;else if(icon.includes('speech-bubble'))d.c=val;else if(icon.includes('reply2'))d.s=val;else if(icon.includes('mark-line'))d.m=val;else if(icon.includes('subers'))d.f=val;});const fVal=row.querySelector('.avatar-content .data-text')?.innerText?.trim();if(fVal)d.f=fVal;csv+=i+1+"\t"+title+"\t"+channel+"\t"+date+"\t"+pu(d.v)+"\t"+pu(d.l)+"\t"+pu(d.c)+"\t"+pu(d.s)+"\t"+pu(d.m)+"\t"+pu(d.f)+"\t"+url+"\n";}catch(e){}});copy(csv);console.log("✅ 틱톡 추출 완료!");}</div>
+      <div class="hint" style="margin-bottom:9px">실행 후 클립보드에 TSV 복사됨 → 아래에 Ctrl+V</div>
+
+      <textarea id="v3Input" rows="8" placeholder="No&#9;Title&#9;Channel&#9;Views&#9;Likes&#9;Comments&#9;Shares&#9;Saves&#9;Followers&#9;Link&#10;1&#9;영상 제목...&#9;채널명&#9;25600000&#9;39000&#9;...&#9;https://www.tiktok.com/@user/video/..."></textarea>
+      <div id="v3Error" class="error-banner"></div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="v3Parse()">파싱 확인</button>
+        <button class="btn-secondary" onclick="v3Clear()">초기화</button>
+      </div>
+    </div>
+
+    <div id="v3Result" style="display:none">
+      <div class="stats-bar">
+        <div class="stat">총 <strong id="v3Count">0</strong>개</div>
+        <div class="stat">평균 ER <strong id="v3ER">—</strong></div>
+        <div class="stat">평균 조회수 <strong id="v3Views">—</strong></div>
+      </div>
+      <div class="result-section">
+        <div class="result-toolbar">
+          <span class="result-toolbar-title">파싱 결과</span>
+          <div class="btn-row" style="margin:0">
+            <button class="btn-secondary" onclick="v3DownloadCSV()">⬇ CSV</button>
+            <button class="btn-save" onclick="saveToQuant('v3')">📥 정량 분석 데이터로 저장</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="v3Head"><tr>
+              <th onclick="doV3Sort(0)">채널<span class="si"></span></th>
+              <th>영상 제목</th>
+              <th onclick="doV3Sort(2)">업로드일<span class="si"></span></th>
+              <th onclick="doV3Sort(3)" style="text-align:right">조회수<span class="si"></span></th>
+              <th onclick="doV3Sort(4)" style="text-align:right">좋아요<span class="si"></span></th>
+              <th onclick="doV3Sort(5)" style="text-align:right">댓글<span class="si"></span></th>
+              <th onclick="doV3Sort(6)" style="text-align:right">공유수<span class="si"></span></th>
+              <th onclick="doV3Sort(7)" style="text-align:right">저장<span class="si"></span></th>
+              <th onclick="doV3Sort(8)" style="text-align:right">ER%<span class="si"></span></th>
+              <th onclick="doV3Sort(9)" style="text-align:right">팔로워<span class="si"></span></th>
+              <th>링크</th>
+            </tr></thead>
+            <tbody id="v3Body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ VER 2 ══════════════ -->
+  <div id="tab2" class="tab-content">
+    <div class="input-section">
+      <label>Ver2 — 리스트 테이블뷰 데이터 붙여넣기</label>
+      <div class="brand-row">
+        <label>브랜드명</label>
+        <input type="text" class="brand-input" id="v2Brand" placeholder="예: L'Oreal, Dove, Pantene">
+      </div>
+      <div class="brand-row" style="margin-top:-2px;margin-bottom:12px">
+        <label>매체</label>
+        <div class="platform-toggle">
+          <button class="plat-btn tt active" id="v2PlatTT" onclick="setPlatform('v2','TikTok')">TT</button>
+          <button class="plat-btn ig"        id="v2PlatIG" onclick="setPlatform('v2','Instagram')">IG</button>
+        </div>
+      </div>
+      <div class="hint">User / 제목 / 게시됨 / 지역 / Promoted? / 조회수 … 형식<br>헤더 포함 여부 무관. @계정명부터 참여도%까지 드래그 복사해주세요.</div>
+      <textarea id="v2Input" rows="7" placeholder="예시:&#10;@.yeaasecret&#10;Tut will be posted TODAYY #hairtok&#10;5일 전&#10;2026/05/25 09:30&#10;United States&#10;12.6M&#10;1.7M&#10;3.2K&#10;13.8K&#10;640&#10;151386&#10;13.5%"></textarea>
+
+      <hr class="divider">
+
+      <label style="margin-top:4px">📎 영상 링크 붙여넣기 <span style="font-weight:400;color:#888">(선택사항 — F12 콘솔 스크립트로 추출)</span></label>
+      <div class="code-label">▼ 아래 코드를 복사 → 브라우저 F12 → Console 탭에 붙여넣고 Enter</div>
+      <div class="code-box" onclick="copyConsoleScript()" title="클릭하면 복사됩니다">const ls=[...document.querySelectorAll('a[href*="/user/tiktok/"],a[href*="/video/"]')].map(a=>a.href).filter(h=>h!==location.href); const out=[]; for(let i=0;i&lt;ls.length-1;i+=2){const u=ls[i].match(/\/user\/tiktok\/([^\/\?#]+)/);const v=ls[i+1].match(/\/video\/([^\/\?#]+)/);if(u&&v)out.push('https://www.tiktok.com/@'+u[1]+'/video/'+v[1]);} copy(out.join('\n')); console.log(out.length+'개 TikTok URL 복사됨',out);</div>
+      <div class="hint" style="margin-bottom:9px">실행 후 콘솔에 <code style="background:#f0f1f7;padding:1px 5px;border-radius:3px">undefined</code>가 뜨면 클립보드에 URL 목록이 복사된 것 → 아래에 Ctrl+V</div>
+      <textarea id="v2UrlInput" rows="3" placeholder="URL 목록 붙여넣기 (한 줄에 하나씩, 행 순서대로)&#10;https://app.exolyt.com/ko/user/tiktok/.../video/...&#10;https://app.exolyt.com/ko/user/tiktok/.../video/..."></textarea>
+
+      <div id="v2Error" class="error-banner"></div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="v2Parse()">파싱 확인</button>
+        <button class="btn-secondary" onclick="v2Clear()">초기화</button>
+      </div>
+    </div>
+
+    <div id="v2Result" style="display:none">
+      <div class="stats-bar">
+        <div class="stat">총 <strong id="v2Count">0</strong>개</div>
+        <div class="stat">평균 참여도 <strong id="v2ER">—</strong></div>
+        <div class="stat">평균 조회수 <strong id="v2Views">—</strong></div>
+      </div>
+      <div class="result-section">
+        <div class="result-toolbar">
+          <span class="result-toolbar-title">파싱 결과</span>
+          <div class="btn-row" style="margin:0">
+            <button class="btn-secondary" onclick="v2DownloadCSV()">⬇ CSV</button>
+            <button class="btn-save" onclick="saveToQuant('v2')">📥 정량 분석 데이터로 저장</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="v2Head"><tr>
+              <th onclick="doV2Sort(0)">핸들<span class="si"></span></th>
+              <th>피드문구</th>
+              <th onclick="doV2Sort(2)">업로드일<span class="si"></span></th>
+              <th onclick="doV2Sort(3)">지역<span class="si"></span></th>
+              <th onclick="doV2Sort(4)" style="text-align:right">조회수<span class="si"></span></th>
+              <th onclick="doV2Sort(5)" style="text-align:right">좋아요<span class="si"></span></th>
+              <th onclick="doV2Sort(6)" style="text-align:right">댓글<span class="si"></span></th>
+              <th onclick="doV2Sort(7)" style="text-align:right">공유수<span class="si"></span></th>
+              <th onclick="doV2Sort(8)" style="text-align:right">다운로드<span class="si"></span></th>
+              <th onclick="doV2Sort(9)" style="text-align:right">즐겨찾기됨<span class="si"></span></th>
+              <th onclick="doV2Sort(10)" style="text-align:right">참여도<span class="si"></span></th>
+              <th onclick="doV2Sort(11)">프로모션<span class="si"></span></th>
+              <th>링크</th>
+            </tr></thead>
+            <tbody id="v2Body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ── 공통 유틸 ────────────────────────────────────────────────────
+function isFlagEmoji(s) {
+  const chars = [...s];
+  if (chars.length !== 2) return false;
+  const a = chars[0].codePointAt(0), b = chars[1].codePointAt(0);
+  return a >= 0x1F1E6 && a <= 0x1F1FF && b >= 0x1F1E6 && b <= 0x1F1FF;
+}
+function toNum(s) {
+  if (!s) return 0;
+  const n = parseFloat(s);
+  if (String(s).includes('M')) return n * 1e6;
+  if (String(s).includes('K')) return n * 1e3;
+  return n || 0;
+}
+function fmtAvg(n) {
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return Math.round(n).toLocaleString();
+}
+function durationToSecs(d) {
+  if (!d) return 0;
+  const p = d.split(':').map(Number);
+  return p.length === 3 ? p[0]*3600+p[1]*60+p[2] : p.length === 2 ? p[0]*60+p[1] : 0;
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// Exolyt URL → TikTok URL 변환
+function toTikTokUrl(url) {
+  if (!url) return '';
+  // 이미 TikTok URL이면 그대로
+  if (url.includes('tiktok.com')) return url;
+  // 형식 1: /user/tiktok/{username}/video/{id}
+  // 형식 2: /tiktok/{username}/video/{id}
+  const m = url.match(/\/(?:user\/)?tiktok\/([^\/\?#]+)\/video\/([^\/\?#]+)/);
+  if (m) return `https://www.tiktok.com/@${m[1]}/video/${m[2]}`;
+  return url; // 알 수 없는 형식 → 원본 그대로
+}
+function erClass(n) { return n >= 3 ? 'er-high' : n >= 1 ? 'er-mid' : 'er-low'; }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+function makeTSV(cols, rows) { return [cols,...rows].map(r=>r.join('\t')).join('\n'); }
+function makeCSV(cols, rows) {
+  return '﻿'+[cols,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+}
+function dlBlob(content, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8;'}));
+  a.download = name; a.click();
+}
+
+// ── 매체 선택 상태 ─────────────────────────────────────────────
+let v1Plat = 'TikTok', v2Plat = 'TikTok', v3Plat = 'TikTok';
+
+function setPlatform(ver, plat) {
+  if (ver === 'v1') v1Plat = plat;
+  else if (ver === 'v2') v2Plat = plat;
+  else v3Plat = plat;
+  const isTT = plat === 'TikTok';
+  document.getElementById(ver + 'PlatTT').classList.toggle('active', isTT);
+  document.getElementById(ver + 'PlatIG').classList.toggle('active', !isTT);
+}
+
+// ── 탭 전환 ──────────────────────────────────────────────────────
+function switchTab(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('tab'+i).classList.toggle('active', i===n);
+    document.getElementById('tabBtn'+i).classList.toggle('active', i===n);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  VER 1 — Exolyt 카드뷰
+// ════════════════════════════════════════════════════════════════
+let v1Data = [];
+let v1SS = { col: -1, asc: true }; // sort state
+
+function parseV1(raw) {
+  const lines = raw.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+  // ① 마크다운 링크 형식
+  const md = [];
+  for (const l of lines) {
+    const m = l.match(/^\[([^\]]*)\]\(([^)]+)\)/);
+    if (m) md.push({text:m[1], url:m[2]});
+  }
+  if (md.length) {
+    const map = new Map();
+    for (const {text,url} of md) { if(!map.has(url)) map.set(url,[]); map.get(url).push(text); }
+    return { rows: [...map.values()].map(f=>extractV1(f)).filter(Boolean) };
+  }
+  // ② 일반 텍스트: @username 으로 레코드 종료
+  const records = []; let cur = [];
+  for (const l of lines) {
+    cur.push(l);
+    if (l.startsWith('@')) { records.push([...cur]); cur=[]; }
+  }
+  if (!records.length)
+    return { rows:[], error:'@계정명으로 끝나는 레코드를 찾지 못했습니다.\n@계정명까지 포함해서 복사해주세요.' };
+  return { rows: records.map(f=>extractV1(f)).filter(Boolean) };
+}
+
+function extractV1(fields) {
+  if (fields.length < 4) return null;
+  let promo=false, views='', likes='', er='', duration='', flag='', cc='', date='', caption='', username='';
+  const nums=[];
+  for (const f of fields) {
+    const s = f.trim(); if (!s) continue;
+    if (s.startsWith('@'))                             { username=s; continue; }
+    if (s.includes('년') && s.includes('일'))          { date=s; continue; }
+    if (/^\d+\.?\d*%$/.test(s))                        { er=s; continue; }
+    if (/^\d{1,2}:\d{2}$/.test(s))                    { duration=s; continue; }
+    if (/^[A-Z]{2}$/.test(s))                          { cc=s; continue; }
+    if (isFlagEmoji(s))                                { flag=s; continue; }
+    if (s === 'E')                                      { continue; }
+    if (s.includes('프로모션됨'))                       { promo=true; continue; }
+    if (/^(긍정적|부정적|중립적임?|혼합됨?)$/.test(s))  { continue; }
+    if (/^\d+\.?\d*[MK]$/.test(s))                    { nums.push(s); continue; }
+    if (s.length > caption.length)                     { caption=s; }
+  }
+  views=nums[0]||''; likes=nums[1]||'';
+  if (!username||!views) return null;
+  return { promo, views, viewsN:toNum(views), likes, likesN:toNum(likes),
+           er, erN:parseFloat(er)||0, duration, durSecs:durationToSecs(duration),
+           flag, cc, date, caption, username };
+}
+
+function renderV1(rows) {
+  document.getElementById('v1Body').innerHTML = rows.map(r=>`
+    <tr>
+      <td class="num">${r.views}</td>
+      <td class="num">${r.likes}</td>
+      <td class="num ${erClass(r.erN)}">${r.er||'—'}</td>
+      <td class="num">${r.durSecs>0?r.durSecs+'초':'—'}</td>
+      <td style="white-space:nowrap">${r.flag?r.flag+'&nbsp;':''}${r.cc||'—'}</td>
+      <td style="white-space:nowrap;color:#555;font-size:12px">${r.date||'—'}</td>
+      <td class="caption-cell" title="${esc(r.caption)}">${esc(r.caption)||'—'}</td>
+      <td class="handle">${esc(r.username)}</td>
+      <td style="text-align:center">${r.promo?'<span class="promo-y">Y</span>':'<span class="promo-n">N</span>'}</td>
+    </tr>`).join('');
+}
+
+function doV1Sort(col) {
+  const ths = document.querySelectorAll('#v1Head th');
+  if (v1SS.col===col) v1SS.asc=!v1SS.asc; else {v1SS.col=col; v1SS.asc=true;}
+  ths.forEach((th,i)=>{th.classList.remove('asc','desc'); if(i===col) th.classList.add(v1SS.asc?'asc':'desc');});
+  const keys=[r=>r.viewsN,r=>r.likesN,r=>r.erN,r=>r.durSecs,r=>r.cc,r=>r.date,r=>r.caption,r=>r.username,r=>r.promo?1:0];
+  const k=keys[col]||(r=>'');
+  renderV1([...v1Data].sort((a,b)=>{const va=k(a),vb=k(b);return typeof va==='number'?(v1SS.asc?va-vb:vb-va):(v1SS.asc?String(va).localeCompare(String(vb),'ko'):String(vb).localeCompare(String(va),'ko'));}));
+}
+
+function v1Parse() {
+  const raw=document.getElementById('v1Input').value;
+  const errEl=document.getElementById('v1Error'); errEl.style.display='none';
+  if (!raw.trim()) { errEl.textContent='데이터를 붙여넣어 주세요.'; errEl.style.display='block'; return; }
+  const {rows,error}=parseV1(raw);
+  if (error||!rows.length) { errEl.textContent=error||'파싱된 데이터가 없습니다.'; errEl.style.display='block'; document.getElementById('v1Result').style.display='none'; return; }
+  v1Data=rows; v1SS={col:-1,asc:true};
+  document.getElementById('v1Count').textContent=rows.length;
+  document.getElementById('v1Promo').textContent=rows.filter(r=>r.promo).length;
+  document.getElementById('v1ER').textContent=(rows.reduce((s,r)=>s+r.erN,0)/rows.length).toFixed(2)+'%';
+  document.getElementById('v1Views').textContent=fmtAvg(rows.reduce((s,r)=>s+r.viewsN,0)/rows.length);
+  document.getElementById('v1Result').style.display='block';
+  document.querySelectorAll('#v1Head th').forEach(th=>th.classList.remove('asc','desc'));
+  renderV1(rows); showToast(`✅ ${rows.length}개 영상 파싱 완료`);
+}
+
+const V1C=['조회수','좋아요수','ER%','영상 초수','국가','업로드일','피드문구','핸들','프로모션여부'];
+function v1Row(r){return[r.views,r.likes,r.er,r.durSecs>0?r.durSecs:'',r.cc,r.date,r.caption.replace(/\t/g,' '),r.username,r.promo?'Y':'N'];}
+function v1CopyTSV(){if(!v1Data.length)return;navigator.clipboard.writeText(makeTSV(V1C,v1Data.map(v1Row))).then(()=>showToast('📋 복사 완료 — 엑셀에 Ctrl+V')).catch(()=>showToast('❌ 복사 실패'));}
+function v1DownloadCSV(){if(!v1Data.length)return;dlBlob(makeCSV(V1C,v1Data.map(v1Row)),`exolyt_v1_${new Date().toISOString().slice(0,10)}.csv`);showToast('⬇ CSV 다운로드');}
+function v1Clear(){document.getElementById('v1Input').value='';document.getElementById('v1Result').style.display='none';document.getElementById('v1Error').style.display='none';v1Data=[];}
+
+document.getElementById('v1Input').addEventListener('paste',()=>setTimeout(v1Parse,80));
+
+// ════════════════════════════════════════════════════════════════
+//  VER 2 — 리스트 테이블뷰
+// ════════════════════════════════════════════════════════════════
+let v2Data = [];
+let v2SS = { col: -1, asc: true }; // sort state
+
+const V2_SKIP = new Set(['User','제목','게시됨','지역','Promoted?','조회수','좋아요','댓글','공유 수','공유수','다운로드','즐겨찾기됨','참여도']);
+function isV2Skip(s) { return V2_SKIP.has(s) || s.includes('도움말') || s.includes('페이지') || /^\d+ 동영상$/.test(s); }
+
+function parseV2(raw) {
+  const lines = raw.trim().split('\n').map(l=>l.trim()).filter(l=>l&&!isV2Skip(l));
+  const records=[]; let cur=null;
+  for (const line of lines) {
+    if (line.startsWith('@')) { if(cur&&cur.length>=6) records.push(cur); cur=[line]; }
+    else if (cur) cur.push(line);
+  }
+  if (cur&&cur.length>=6) records.push(cur);
+  if (!records.length)
+    return {rows:[],error:'@계정명으로 시작하는 레코드를 찾지 못했습니다.'};
+  return {rows:records.map(extractV2).filter(Boolean)};
+}
+
+function extractV2(fields) {
+  const username=fields[0];
+  const absDateIdx=fields.findIndex(f=>/^\d{4}\/\d{2}\/\d{2}/.test(f));
+  if (absDateIdx<0) return null;
+  const relDateIdx=absDateIdx-1;
+  const hasRel=relDateIdx>0&&/전$/.test(fields[relDateIdx]);
+  const captionEnd=hasRel?relDateIdx:absDateIdx;
+  const caption=fields.slice(1,captionEnd).join(' ');
+  const date=fields[absDateIdx];
+  let idx=absDateIdx+1; let country='';
+  if (idx<fields.length&&/[a-zA-Zㄱ-힣]/.test(fields[idx])&&!/^\d/.test(fields[idx])&&!/^\d+\.?\d*%$/.test(fields[idx]))
+    country=fields[idx++];
+  const rest=fields.slice(idx); let er='';
+  if (rest.length&&/^\d+\.?\d*%$/.test(rest[rest.length-1])) er=rest.pop();
+  // 프로모션됨 값이 숫자 필드 사이에 섞이면 분리
+  let promo=false;
+  const numRest=rest.filter(f=>{
+    if(f.includes('프로모션됨')||f==='Promoted'||f==='예'||f==='Yes'){promo=true;return false;}
+    return true;
+  });
+  const [views='',likes='',comments='',shares='',downloads='',saves='']=numRest;
+  if (!views) return null;
+  return {username,caption,date,country,promo,
+    views,viewsN:toNum(views),likes,likesN:toNum(likes),
+    comments,commentsN:toNum(comments),shares,sharesN:toNum(shares),
+    downloads,downloadsN:toNum(downloads),saves,savesN:toNum(saves),
+    er,erN:parseFloat(er)||0,url:''};
+}
+
+function renderV2(rows) {
+  document.getElementById('v2Body').innerHTML = rows.map(r=>`
+    <tr>
+      <td class="handle">${esc(r.username)}</td>
+      <td class="caption-cell" title="${esc(r.caption)}">${esc(r.caption)||'—'}</td>
+      <td style="white-space:nowrap;color:#555;font-size:12px">${r.date||'—'}</td>
+      <td style="white-space:nowrap">${esc(r.country)||'—'}</td>
+      <td class="num">${r.views}</td>
+      <td class="num">${r.likes}</td>
+      <td class="num">${r.comments}</td>
+      <td class="num">${r.shares}</td>
+      <td class="num">${r.downloads}</td>
+      <td class="num">${r.saves}</td>
+      <td class="num ${erClass(r.erN)}">${r.er||'—'}</td>
+      <td style="text-align:center">${r.promo?'<span class="promo-y">Y</span>':'<span class="promo-n">N</span>'}</td>
+      <td>${r.url?`<a class="vlink" href="${esc(toTikTokUrl(r.url))}" target="_blank">${v2Plat==='Instagram'?'Instagram↗':'TikTok↗'}</a>`:'—'}</td>
+    </tr>`).join('');
+}
+
+function doV2Sort(col) {
+  const ths=document.querySelectorAll('#v2Head th');
+  if(v2SS.col===col) v2SS.asc=!v2SS.asc; else{v2SS.col=col;v2SS.asc=true;}
+  ths.forEach((th,i)=>{th.classList.remove('asc','desc');if(i===col)th.classList.add(v2SS.asc?'asc':'desc');});
+  const keys=[r=>r.username,r=>r.caption,r=>r.date,r=>r.country,r=>r.viewsN,r=>r.likesN,r=>r.commentsN,r=>r.sharesN,r=>r.downloadsN,r=>r.savesN,r=>r.erN,r=>r.promo?1:0,r=>r.url];
+  const k=keys[col]||(r=>'');
+  renderV2([...v2Data].sort((a,b)=>{const va=k(a),vb=k(b);return typeof va==='number'?(v2SS.asc?va-vb:vb-va):(v2SS.asc?String(va).localeCompare(String(vb),'ko'):String(vb).localeCompare(String(va),'ko'));}));
+}
+
+function v2Parse() {
+  const raw=document.getElementById('v2Input').value;
+  const urlRaw=document.getElementById('v2UrlInput').value;
+  const errEl=document.getElementById('v2Error'); errEl.style.display='none';
+  if (!raw.trim()) {errEl.textContent='데이터를 붙여넣어 주세요.';errEl.style.display='block';return;}
+  const {rows,error}=parseV2(raw);
+  if (error||!rows.length) {errEl.textContent=error||'파싱된 데이터가 없습니다.';errEl.style.display='block';document.getElementById('v2Result').style.display='none';return;}
+  // URL 매핑 (인덱스 순서대로)
+  if (urlRaw.trim()) {
+    const urls=urlRaw.trim().split('\n').map(u=>u.trim()).filter(u=>u.startsWith('http'));
+    rows.forEach((r,i)=>{if(urls[i]) r.url=urls[i];});
+  }
+  v2Data=rows; v2SS={col:-1,asc:true};
+  document.getElementById('v2Count').textContent=rows.length;
+  document.getElementById('v2ER').textContent=(rows.reduce((s,r)=>s+r.erN,0)/rows.length).toFixed(2)+'%';
+  document.getElementById('v2Views').textContent=fmtAvg(rows.reduce((s,r)=>s+r.viewsN,0)/rows.length);
+  document.getElementById('v2Result').style.display='block';
+  document.querySelectorAll('#v2Head th').forEach(th=>th.classList.remove('asc','desc'));
+  renderV2(rows); showToast(`✅ ${rows.length}개 영상 파싱 완료`);
+}
+
+const V2C=['핸들','피드문구','업로드일','지역','조회수','좋아요','댓글','공유수','다운로드','즐겨찾기됨','참여도','프로모션여부','영상링크'];
+function v2Row(r){return[r.username,r.caption.replace(/\t/g,' '),r.date,r.country,r.views,r.likes,r.comments,r.shares,r.downloads,r.saves,r.er,r.promo?'Y':'N',toTikTokUrl(r.url)||''];}
+function v2CopyTSV(){if(!v2Data.length)return;navigator.clipboard.writeText(makeTSV(V2C,v2Data.map(v2Row))).then(()=>showToast('📋 복사 완료 — 엑셀에 Ctrl+V')).catch(()=>showToast('❌ 복사 실패'));}
+function v2DownloadCSV(){if(!v2Data.length)return;dlBlob(makeCSV(V2C,v2Data.map(v2Row)),`exolyt_v2_${new Date().toISOString().slice(0,10)}.csv`);showToast('⬇ CSV 다운로드');}
+function v2Clear(){document.getElementById('v2Input').value='';document.getElementById('v2UrlInput').value='';document.getElementById('v2Result').style.display='none';document.getElementById('v2Error').style.display='none';v2Data=[];}
+
+// F12 콘솔 스크립트 복사
+function copyConsoleScript(){
+  const s=`const ls=[...document.querySelectorAll('a[href*="/user/tiktok/"],a[href*="/video/"]')].map(a=>a.href).filter(h=>h!==location.href); const out=[]; for(let i=0;i<ls.length-1;i+=2){const u=ls[i].match(/\\/user\\/tiktok\\/([^\\/\\?#]+)/);const v=ls[i+1].match(/\\/video\\/([^\\/\\?#]+)/);if(u&&v)out.push('https://www.tiktok.com/@'+u[1]+'/video/'+v[1]);} copy(out.join('\\n')); console.log(out.length+'개 TikTok URL 복사됨',out);`;
+  navigator.clipboard.writeText(s).then(()=>showToast('📋 콘솔 스크립트 복사됨 — F12 > Console에 붙여넣기')).catch(()=>showToast('❌ 복사 실패'));
+}
+
+document.getElementById('v2Input').addEventListener('paste',()=>setTimeout(v2Parse,80));
+
+// ════════════════════════════════════════════════════════════════
+//  VER 3 — Nox
+// ════════════════════════════════════════════════════════════════
+let v3Data = [];
+let v3SS = { col: -1, asc: true };
+
+function parseV3(raw) {
+  const lines = raw.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+  const rows = [];
+  for (const line of lines) {
+    const cols = line.split('\t');
+    if (cols.length < 4) continue;
+    if (cols[0] === 'No' || cols[0] === '#') continue; // 헤더 스킵
+    const [noStr, title='', channel='', date='', viewsStr='0', likesStr='0', commentsStr='0', sharesStr='0', savesStr='0', followersStr='0', url=''] = cols;
+    const viewsN    = Number(viewsStr)    || 0;
+    const likesN    = Number(likesStr)    || 0;
+    const commentsN = Number(commentsStr) || 0;
+    const sharesN   = Number(sharesStr)   || 0;
+    const savesN    = Number(savesStr)    || 0;
+    const followersN= Number(followersStr)|| 0;
+    const erN = viewsN > 0 ? (likesN / viewsN * 100) : 0;
+    rows.push({
+      no: Number(noStr) || rows.length + 1,
+      title: title.trim(),
+      channel: channel.trim(),
+      date: date.trim(),
+      views: viewsStr, viewsN,
+      likes: likesStr, likesN,
+      comments: commentsStr, commentsN,
+      shares: sharesStr, sharesN,
+      saves: savesStr, savesN,
+      followers: followersStr, followersN,
+      erN, er: erN.toFixed(2) + '%',
+      url: url.trim()
+    });
+  }
+  if (!rows.length)
+    return { rows: [], error: 'No\tTitle\tChannel... 형식의 TSV를 붙여넣어 주세요.\n콘솔 스크립트 실행 후 결과를 붙여넣어야 합니다.' };
+  return { rows };
+}
+
+function renderV3(rows) {
+  document.getElementById('v3Body').innerHTML = rows.map(r => `
+    <tr>
+      <td class="handle">${esc(r.channel)}</td>
+      <td class="caption-cell" title="${esc(r.title)}">${esc(r.title) || '—'}</td>
+      <td style="white-space:nowrap;color:#555;font-size:12px">${esc(r.date) || '—'}</td>
+      <td class="num">${fmtAvg(r.viewsN)}</td>
+      <td class="num">${fmtAvg(r.likesN)}</td>
+      <td class="num">${fmtAvg(r.commentsN)}</td>
+      <td class="num">${fmtAvg(r.sharesN)}</td>
+      <td class="num">${fmtAvg(r.savesN)}</td>
+      <td class="num ${erClass(r.erN)}">${r.er}</td>
+      <td class="num">${fmtAvg(r.followersN)}</td>
+      <td>${r.url ? `<a class="vlink" href="${esc(r.url)}" target="_blank">${v3Plat==='Instagram'?'Instagram↗':'TikTok↗'}</a>` : '—'}</td>
+    </tr>`).join('');
+}
+
+function doV3Sort(col) {
+  const ths = document.querySelectorAll('#v3Head th');
+  if (v3SS.col === col) v3SS.asc = !v3SS.asc; else { v3SS.col = col; v3SS.asc = true; }
+  ths.forEach((th, i) => { th.classList.remove('asc', 'desc'); if (i === col) th.classList.add(v3SS.asc ? 'asc' : 'desc'); });
+  const keys = [r=>r.channel, r=>r.title, r=>r.date, r=>r.viewsN, r=>r.likesN, r=>r.commentsN, r=>r.sharesN, r=>r.savesN, r=>r.erN, r=>r.followersN, r=>r.url];
+  const k = keys[col] || (r => '');
+  renderV3([...v3Data].sort((a, b) => { const va = k(a), vb = k(b); return typeof va === 'number' ? (v3SS.asc ? va-vb : vb-va) : (v3SS.asc ? String(va).localeCompare(String(vb),'ko') : String(vb).localeCompare(String(va),'ko')); }));
+}
+
+function v3Parse() {
+  const raw = document.getElementById('v3Input').value;
+  const errEl = document.getElementById('v3Error'); errEl.style.display = 'none';
+  if (!raw.trim()) { errEl.textContent = '데이터를 붙여넣어 주세요.'; errEl.style.display = 'block'; return; }
+  const { rows, error } = parseV3(raw);
+  if (error || !rows.length) { errEl.textContent = error || '파싱된 데이터가 없습니다.'; errEl.style.display = 'block'; document.getElementById('v3Result').style.display = 'none'; return; }
+  v3Data = rows; v3SS = { col: -1, asc: true };
+  document.getElementById('v3Count').textContent  = rows.length;
+  document.getElementById('v3ER').textContent     = (rows.reduce((s, r) => s + r.erN, 0) / rows.length).toFixed(2) + '%';
+  document.getElementById('v3Views').textContent  = fmtAvg(rows.reduce((s, r) => s + r.viewsN, 0) / rows.length);
+  document.getElementById('v3Result').style.display = 'block';
+  document.querySelectorAll('#v3Head th').forEach(th => th.classList.remove('asc', 'desc'));
+  renderV3(rows); showToast(`✅ ${rows.length}개 영상 파싱 완료`);
+}
+
+const V3C = ['채널', '영상 제목', '업로드일', '조회수', '좋아요', '댓글', '공유수', '저장', 'ER%', '팔로워', '영상링크'];
+function v3Row(r) { return [r.channel, r.title.replace(/\t/g,' '), r.date, r.viewsN, r.likesN, r.commentsN, r.sharesN, r.savesN, r.er, r.followersN, r.url]; }
+function v3DownloadCSV() { if (!v3Data.length) return; dlBlob(makeCSV(V3C, v3Data.map(v3Row)), `nox_v3_${new Date().toISOString().slice(0,10)}.csv`); showToast('⬇ CSV 다운로드'); }
+function v3Clear() { document.getElementById('v3Input').value=''; document.getElementById('v3Result').style.display='none'; document.getElementById('v3Error').style.display='none'; v3Data=[]; }
+
+function copyNoxScript() {
+  const s = `{const pu=s=>{if(!s||s==="0"||s==="-"||s.includes("%"))return s;let n=parseFloat(s.replace(/,/g,""));if(s.includes("만"))return Math.round(n*10000);if(s.includes("억"))return Math.round(n*100000000);if(s.includes("천"))return Math.round(n*1000);return n;};let csv="No\\tTitle\\tChannel\\tDate\\tViews\\tLikes\\tComments\\tShares\\tSaves\\tFollowers\\tLink\\n";document.querySelectorAll('.youtube-video-item').forEach((row,i)=>{try{const tEl=row.querySelector('.video-title');const title=tEl?.innerText?.trim().replace(/\\t|\\n/g," ")||"-";const noxLink=tEl?.getAttribute('href')||"";let url=noxLink.startsWith('http')?noxLink:"https://www.tiktok.com"+noxLink;const channel=row.querySelector('.title')?.innerText?.trim()||"-";const date=row.querySelector('.publish-text')?.innerText?.trim()||"-";let d={v:"0",l:"0",c:"0",s:"0",m:"0",f:"0"};row.querySelectorAll('.data-text').forEach(el=>{const icon=el.previousElementSibling?.className||"";const val=el.innerText.trim();if(icon.includes('play'))d.v=val;else if(icon.includes('thumbs-up'))d.l=val;else if(icon.includes('speech-bubble'))d.c=val;else if(icon.includes('reply2'))d.s=val;else if(icon.includes('mark-line'))d.m=val;else if(icon.includes('subers'))d.f=val;});const fVal=row.querySelector('.avatar-content .data-text')?.innerText?.trim();if(fVal)d.f=fVal;csv+=i+1+"\\t"+title+"\\t"+channel+"\\t"+date+"\\t"+pu(d.v)+"\\t"+pu(d.l)+"\\t"+pu(d.c)+"\\t"+pu(d.s)+"\\t"+pu(d.m)+"\\t"+pu(d.f)+"\\t"+url+"\\n";}catch(e){}});copy(csv);console.log("✅ 틱톡 추출 완료!");}`;
+  navigator.clipboard.writeText(s).then(() => showToast('📋 Nox 스크립트 복사됨 — F12 > Console에 붙여넣기')).catch(() => showToast('❌ 복사 실패'));
+}
+
+document.getElementById('v3Input').addEventListener('paste', () => setTimeout(v3Parse, 80));
+
+// ── 정량 분석 데이터 저장 ──────────────────────────────────────────
+function saveToQuant(source) {
+  const data = source === 'v1' ? v1Data : source === 'v2' ? v2Data : v3Data;
+  if (!data.length) { showToast('저장할 데이터가 없습니다.'); return; }
+
+  const brandId = source === 'v1' ? 'v1Brand' : source === 'v2' ? 'v2Brand' : 'v3Brand';
+  const brand = (document.getElementById(brandId).value || '').trim();
+
+  const ts = new Date().toISOString();
+  const batch = {
+    _batchId: ts,
+    _source: source,
+    _savedAt: ts,
+    _count: data.length,
+    _brand: brand
+  };
+
+  // 각 행에 메타 추가
+  const rows = data.map((r, i) => {
+    const isV3 = source === 'v3';
+    const handle  = isV3 ? (r.channel.startsWith('@') ? r.channel : '@' + r.channel) : (r.username || '');
+    const caption = isV3 ? (r.title   || '') : (r.caption  || '');
+    const date    = isV3 ? (r.date || '') : (r.date || '');
+    const country = source === 'v1' ? (r.cc || '') : isV3 ? '' : (r.country || '');
+    const views   = isV3 ? fmtAvg(r.viewsN)    : (r.views    || '');
+    const likes   = isV3 ? fmtAvg(r.likesN)    : (r.likes    || '');
+    const cmts    = isV3 ? fmtAvg(r.commentsN) : (r.comments || '');
+    const shrs    = isV3 ? fmtAvg(r.sharesN)   : (r.shares   || '');
+    const svs     = isV3 ? fmtAvg(r.savesN)    : (r.saves    || '');
+    return {
+      _batchId: ts,
+      _source: source,
+      _rowIdx: i,
+      brand,
+      platform: source === 'v1' ? v1Plat : source === 'v2' ? v2Plat : v3Plat,
+      handle, caption, date, country,
+      views,  viewsN:    r.viewsN    || 0,
+      likes,  likesN:    r.likesN    || 0,
+      er:     r.er       || '',
+      erN:    r.erN      || 0,
+      promo:  isV3 ? 'N' : (r.promo ? 'Y' : 'N'),
+      durSecs:    r.durSecs    || 0,
+      comments:   cmts,  commentsN:  r.commentsN  || 0,
+      shares:     shrs,  sharesN:    r.sharesN    || 0,
+      downloads:  r.downloads  || '',
+      downloadsN: r.downloadsN || 0,
+      savesVal:   svs,   savesN:     r.savesN     || 0,
+      url:        r.url        || ''
+    };
+  });
+
+  // localStorage에 누적 저장
+  try {
+    const existing = JSON.parse(localStorage.getItem('kolQuantRows') || '[]');
+    const batches  = JSON.parse(localStorage.getItem('kolQuantBatches') || '[]');
+    localStorage.setItem('kolQuantRows',   JSON.stringify([...existing, ...rows]));
+    localStorage.setItem('kolQuantBatches', JSON.stringify([...batches, batch]));
+    showToast(`✅ ${rows.length}개 저장 완료 → 정량 분석으로 이동합니다`);
+    setTimeout(() => { window.location.href = 'kol_quantitative.html'; }, 900);
+  } catch(e) {
+    showToast('❌ 저장 실패: ' + e.message);
+  }
+}
+
+// ── URL hash로 탭 자동 전환 (#tab1 / #tab2 / #tab3) ──────────────
+(function(){
+  const h = location.hash;
+  if (h === '#tab2') switchTab(2);
+  else if (h === '#tab3') switchTab(3);
+  else switchTab(1);
+})();
+</script>
+</body>
+</html>
