@@ -177,7 +177,8 @@ a.vlink:hover{text-decoration:underline;}
 .er-filter-btn{padding:6px 16px;border-radius:20px;border:1px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;background:#f5f6fa;color:#666;transition:all .15s;}
 .er-filter-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
 .chart-duo{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-.chart-duo-box{background:var(--white);border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.chart-duo-box{background:var(--white);border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);position:relative;height:320px;}
+.chart-duo-box canvas{max-height:260px;}
 .chart-duo-title{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px;text-align:center;}
 @media(max-width:700px){.chart-duo{grid-template-columns:1fr;}}
 </style>
