@@ -193,17 +193,31 @@ a.vlink:hover{text-decoration:underline;}
 .slider-line input[type=range]{flex:1;height:3px;accent-color:var(--accent);cursor:pointer;margin:0;}
 .slider-bound-val{width:58px;font-size:10px;color:var(--accent);font-weight:600;text-align:right;flex-shrink:0;white-space:nowrap;}
 
-/* ── 매체 상세 헤더 + 상위N% 입력 ── */
-.detail-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
-.detail-title{font-size:14px;font-weight:700;color:var(--navy);}
-.er-topn-wrap{display:flex;align-items:center;gap:6px;background:#f0f1f7;border-radius:8px;padding:5px 12px;}
-.er-topn-label{font-size:12px;color:var(--sub);font-weight:600;white-space:nowrap;}
-.er-topn-input{width:48px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:700;padding:3px 6px;text-align:center;color:var(--accent);outline:none;-moz-appearance:textfield;}
-.er-topn-input::-webkit-outer-spin-button,.er-topn-input::-webkit-inner-spin-button{-webkit-appearance:none;}
-.er-topn-input:focus{border-color:var(--accent);}
-.er-topn-unit{font-size:12px;color:var(--sub);font-weight:600;}
+/* ── 매체 상세 타이틀 ── */
+.detail-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:10px;}
 .plat-badge-tbl{display:inline-flex;align-items:center;gap:5px;}
 .plat-dot{display:inline-block;width:8px;height:8px;border-radius:50%;}
+
+/* ── ER 상위 N% 테이블 ── */
+.er-topn-section{margin-top:24px;}
+.er-topn-section-label{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.er-topn-section-label::before{content:'';display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px;}
+.er-topn-table-wrap{overflow-x:auto;}
+.er-topn-table{width:100%;border-collapse:collapse;font-size:13px;}
+.er-topn-table th,.er-topn-table td{padding:10px 14px;border-bottom:1px solid var(--border);}
+.er-topn-table th{font-size:12px;font-weight:600;color:var(--sub);background:#f7f8ff;text-align:center;}
+.er-topn-table th:first-child{text-align:left;}
+.er-topn-table td{text-align:center;vertical-align:middle;}
+.er-topn-table td:first-child{text-align:left;}
+.er-topn-table tr:last-child td{border-bottom:none;}
+.topn-cell{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.topn-ctrl{display:inline-flex;align-items:center;gap:3px;}
+.topn-ctrl span{font-size:11px;color:#aaa;}
+.topn-ctrl input{width:38px;font-size:11px;font-weight:700;text-align:center;padding:2px 4px;border:1px solid var(--border);border-radius:6px;color:var(--accent);outline:none;-moz-appearance:textfield;}
+.topn-ctrl input::-webkit-outer-spin-button,.topn-ctrl input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.topn-ctrl input:focus{border-color:var(--accent);}
+.topn-val{font-size:14px;font-weight:700;color:var(--navy);}
+.topn-cnt{font-size:10px;color:#aaa;}
 </style>
 </head>
 <body>
@@ -348,16 +362,13 @@ a.vlink:hover{text-decoration:underline;}
   </div>
   <div id="detailContent">
     <div class="detail-section">
-      <div class="detail-section-header">
-        <div class="detail-title">매체 상세</div>
-        <div class="er-topn-wrap">
-          <span class="er-topn-label">ER 상위</span>
-          <input type="number" id="erTopNInput" class="er-topn-input" value="100" min="1" max="100" oninput="setErTopN(this.value)">
-          <span class="er-topn-unit">%</span>
-        </div>
-      </div>
+      <div class="detail-title">매체 상세</div>
       <div class="data-note" id="detailDataNote"></div>
       <div class="media-table-wrap" id="mediaSummaryRow"></div>
+      <div class="er-topn-section">
+        <div class="er-topn-section-label">ER 상위 N% 기준</div>
+        <div class="er-topn-table-wrap" id="erTopNTable"></div>
+      </div>
       <div class="er-filter-bar" id="erFilterBar">
         <button class="er-filter-btn active" onclick="setErFilter('erL')">좋아요</button>
         <button class="er-filter-btn" onclick="setErFilter('erC')">댓글</button>
@@ -775,21 +786,71 @@ const PLAT_COLORS = {
 };
 function platColor(pt){ return PLAT_COLORS[pt]||{bg:'rgba(92,107,192,0.55)',border:'#5c6bc0'}; }
 
-let erTopN = 100;
+// ── ER 상위 N% 테이블 상태 ──
+const ER_TOPN_KEYS = ['erL','erC','erS','erB'];
+const ER_TOPN_NAMES = {erL:'좋아요',erC:'댓글',erS:'공유',erB:'저장'};
+const ER_TOPN_FNS = {
+  erL: r=>erN(r.likesN,r.viewsN),
+  erC: r=>erN(r.commentsN,r.viewsN),
+  erS: r=>erN(r.sharesN,r.viewsN),
+  erB: r=>erN(r.savesN,r.viewsN),
+};
+let _topNState = {};
+let _topNData  = [];
 
-function setErTopN(val){
-  const n = Math.min(100, Math.max(1, parseInt(val)||100));
-  erTopN = n;
-  const input = document.getElementById('erTopNInput');
-  if(input && input.value != n) input.value = n;
-  buildDetailCharts();
+function _topNRows(arr, key, n){
+  if(n >= 100) return arr;
+  const sorted = [...arr].sort((a,b) => ER_TOPN_FNS[key](b) - ER_TOPN_FNS[key](a));
+  return sorted.slice(0, Math.max(1, Math.ceil(n / 100 * sorted.length)));
 }
 
-function topNRows(rows, n){
-  if(n >= 100) return rows;
-  const m = ER_META[currentErKey];
-  const sorted = [...rows].sort((a,b) => m.fn(b) - m.fn(a));
-  return sorted.slice(0, Math.max(1, Math.ceil(n / 100 * sorted.length)));
+function changeErTopN(pt, key, val){
+  const n = Math.min(100, Math.max(1, parseInt(val)||100));
+  if(!_topNState[pt]) _topNState[pt] = {};
+  _topNState[pt][key] = n;
+  buildErTopNTable(_topNData);
+}
+
+function buildErTopNTable(data){
+  _topNData = data;
+  const platforms = [...new Set(data.map(r=>r.platform||'TikTok'))].sort();
+  // 상태 초기화 (없는 경우만)
+  platforms.forEach(pt=>{
+    if(!_topNState[pt]) _topNState[pt]={};
+    ER_TOPN_KEYS.forEach(k=>{ if(_topNState[pt][k]===undefined) _topNState[pt][k]=100; });
+  });
+  const thead = `<tr>
+    <th>매체</th>
+    ${ER_TOPN_KEYS.map(k=>`<th>ER(${ER_TOPN_NAMES[k]})</th>`).join('')}
+  </tr>`;
+  const tbody = platforms.map(pt=>{
+    const ptRows = data.filter(r=>(r.platform||'TikTok')===pt);
+    const col = platColor(pt);
+    const cells = ER_TOPN_KEYS.map(k=>{
+      const n = _topNState[pt][k];
+      const filtered = _topNRows(ptRows, k, n);
+      const val = filtered.length ? filtered.reduce((s,r)=>s+ER_TOPN_FNS[k](r),0)/filtered.length : 0;
+      const safeId = pt.replace(/[^a-zA-Z0-9]/g,'_');
+      return `<td>
+        <div class="topn-cell">
+          <div class="topn-ctrl">
+            <span>상위</span>
+            <input type="number" min="1" max="100" value="${n}"
+              oninput="changeErTopN('${pt}','${k}',this.value)">
+            <span>%</span>
+          </div>
+          <div class="topn-val">${val.toFixed(2)}%</div>
+          <div class="topn-cnt">${filtered.length} / ${ptRows.length}건</div>
+        </div>
+      </td>`;
+    }).join('');
+    return `<tr>
+      <td><span class="plat-badge-tbl"><span class="plat-dot" style="background:${col.border}"></span>${pt}</span></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+  document.getElementById('erTopNTable').innerHTML =
+    `<table class="er-topn-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
 }
 
 function buildDetailCharts() {
@@ -804,25 +865,21 @@ function buildDetailCharts() {
   document.getElementById('detailContent').style.display='block';
   note.textContent = `기준 데이터: ${data.length}개 영상`;
 
-  // 플랫폼 목록
   const platforms=[...new Set(data.map(r=>r.platform||'TikTok'))].sort();
 
-  // ── 매체 요약 테이블 (ER 상위 N% 필터 적용) ──
+  // ── 매체 요약 테이블 (전체 기준) ──
   const tRows = platforms.map(pt=>{
-    const allPtRows = data.filter(r=>(r.platform||'TikTok')===pt);
-    const rows = topNRows(allPtRows, erTopN);
-    const n = rows.length;
-    const total = allPtRows.length;
+    const rows=data.filter(r=>(r.platform||'TikTok')===pt);
+    const n=rows.length;
     const avgV = avg(rows,r=>r.viewsN);
     const avgL = avg(rows,r=>erN(r.likesN,r.viewsN));
     const avgC = avg(rows,r=>erN(r.commentsN,r.viewsN));
     const avgS = avg(rows,r=>erN(r.sharesN,r.viewsN));
     const avgB = avg(rows,r=>erN(r.savesN,r.viewsN));
     const col  = platColor(pt);
-    const countLabel = erTopN >= 100 ? n : `${n} / ${total}`;
     return `<tr>
       <td><span class="plat-badge-tbl"><span class="plat-dot" style="background:${col.border}"></span>${pt}</span></td>
-      <td>${countLabel}</td>
+      <td>${n}</td>
       <td>${fmtN(Math.round(avgV))}</td>
       <td>${avgL.toFixed(2)}%</td>
       <td>${avgC.toFixed(2)}%</td>
@@ -833,13 +890,14 @@ function buildDetailCharts() {
   document.getElementById('mediaSummaryRow').innerHTML = `
     <table class="media-table">
       <thead><tr>
-        <th>매체</th>
-        <th>콘텐츠 수${erTopN < 100 ? ` <span style="font-size:10px;font-weight:400;color:#999">(상위${erTopN}% / 전체)</span>` : ''}</th>
-        <th>평균 조회수</th>
+        <th>매체</th><th>콘텐츠 수</th><th>평균 조회수</th>
         <th>ER(좋아요)</th><th>ER(댓글)</th><th>ER(공유)</th><th>ER(저장)</th>
       </tr></thead>
       <tbody>${tRows}</tbody>
     </table>`;
+
+  // ── ER 상위 N% 테이블 ──
+  buildErTopNTable(data);
 
   // ── 플랫폼별 산점도 2개 ──
   buildPlatCharts(data);
