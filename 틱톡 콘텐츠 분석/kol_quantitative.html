@@ -181,6 +181,16 @@ a.vlink:hover{text-decoration:underline;}
 .chart-duo-box canvas{max-height:260px;}
 .chart-duo-title{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px;text-align:center;}
 @media(max-width:700px){.chart-duo{grid-template-columns:1fr;}}
+
+/* ── 차트 슬라이더 ── */
+.chart-duo-box{position:relative;}
+.chart-canvas-wrap{position:relative;height:260px;margin-bottom:14px;}
+.chart-sliders{display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px solid #f0f1f7;}
+.slider-row{display:flex;align-items:center;gap:10px;font-size:11px;}
+.slider-label{width:34px;color:#888;font-weight:600;flex-shrink:0;}
+.slider-pair{flex:1;display:flex;flex-direction:column;gap:3px;}
+.slider-pair input[type=range]{width:100%;height:3px;accent-color:var(--accent);cursor:pointer;}
+.slider-vals{width:130px;color:var(--accent);font-size:10px;font-weight:600;text-align:right;flex-shrink:0;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -337,11 +347,47 @@ a.vlink:hover{text-decoration:underline;}
       <div class="chart-duo">
         <div class="chart-duo-box">
           <div class="chart-duo-title">Instagram</div>
-          <canvas id="chartIG"></canvas>
+          <div class="chart-canvas-wrap"><canvas id="chartIG"></canvas></div>
+          <div class="chart-sliders">
+            <div class="slider-row">
+              <span class="slider-label">조회수</span>
+              <div class="slider-pair">
+                <input type="range" id="igViewsMin" oninput="onSlider('IG')">
+                <input type="range" id="igViewsMax" oninput="onSlider('IG')">
+              </div>
+              <span class="slider-vals" id="igViewsVals"></span>
+            </div>
+            <div class="slider-row">
+              <span class="slider-label">ER</span>
+              <div class="slider-pair">
+                <input type="range" id="igErMin" step="0.01" oninput="onSlider('IG')">
+                <input type="range" id="igErMax" step="0.01" oninput="onSlider('IG')">
+              </div>
+              <span class="slider-vals" id="igErVals"></span>
+            </div>
+          </div>
         </div>
         <div class="chart-duo-box">
           <div class="chart-duo-title">TikTok</div>
-          <canvas id="chartTT"></canvas>
+          <div class="chart-canvas-wrap"><canvas id="chartTT"></canvas></div>
+          <div class="chart-sliders">
+            <div class="slider-row">
+              <span class="slider-label">조회수</span>
+              <div class="slider-pair">
+                <input type="range" id="ttViewsMin" oninput="onSlider('TT')">
+                <input type="range" id="ttViewsMax" oninput="onSlider('TT')">
+              </div>
+              <span class="slider-vals" id="ttViewsVals"></span>
+            </div>
+            <div class="slider-row">
+              <span class="slider-label">ER</span>
+              <div class="slider-pair">
+                <input type="range" id="ttErMin" step="0.01" oninput="onSlider('TT')">
+                <input type="range" id="ttErMax" step="0.01" oninput="onSlider('TT')">
+              </div>
+              <span class="slider-vals" id="ttErVals"></span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -746,10 +792,55 @@ function setErFilter(key){
   buildPlatCharts(data);
 }
 
-function buildPlatChart(canvasId, pt, data){
+let _platData = {};
+
+function initSliders(prefix, rows){
   const m = ER_META[currentErKey];
-  const rows = data.filter(r=>(r.platform||'TikTok')===pt);
-  const col  = platColor(pt);
+  const vMax = Math.max(...rows.map(r=>r.viewsN), 1);
+  const eMax = Math.max(...rows.map(r=>m.fn(r)), 0.01);
+  ['ViewsMin','ViewsMax','ErMin','ErMax'].forEach(s=>{
+    const el = document.getElementById(prefix.toLowerCase()+s);
+    if(!el) return;
+    if(s.includes('Views')){ el.min=0; el.max=vMax; el.step=Math.round(vMax/200)||1; }
+    else { el.min=0; el.max=eMax.toFixed(2); }
+  });
+  document.getElementById(prefix.toLowerCase()+'ViewsMin').value = 0;
+  document.getElementById(prefix.toLowerCase()+'ViewsMax').value = vMax;
+  document.getElementById(prefix.toLowerCase()+'ErMin').value   = 0;
+  document.getElementById(prefix.toLowerCase()+'ErMax').value   = eMax.toFixed(2);
+  updateSliderVals(prefix);
+}
+
+function updateSliderVals(prefix){
+  const p = prefix.toLowerCase();
+  const vMin = +document.getElementById(p+'ViewsMin').value;
+  const vMax = +document.getElementById(p+'ViewsMax').value;
+  const eMin = +document.getElementById(p+'ErMin').value;
+  const eMax = +document.getElementById(p+'ErMax').value;
+  document.getElementById(p+'ViewsVals').textContent = `${fmtN(Math.round(vMin))} ~ ${fmtN(Math.round(vMax))}`;
+  document.getElementById(p+'ErVals').textContent    = `${eMin.toFixed(2)}% ~ ${eMax.toFixed(2)}%`;
+}
+
+function onSlider(prefix){
+  updateSliderVals(prefix);
+  const p = prefix.toLowerCase();
+  const pt = prefix==='IG' ? 'Instagram' : 'TikTok';
+  const canvasId = 'chart'+prefix;
+  const m = ER_META[currentErKey];
+  const vMin = +document.getElementById(p+'ViewsMin').value;
+  const vMax = +document.getElementById(p+'ViewsMax').value;
+  const eMin = +document.getElementById(p+'ErMin').value;
+  const eMax = +document.getElementById(p+'ErMax').value;
+  const rows = (_platData[prefix]||[]).filter(r=>{
+    const v=r.viewsN, e=m.fn(r);
+    return v>=vMin && v<=vMax && e>=eMin && e<=eMax;
+  });
+  renderChart(canvasId, pt, rows);
+}
+
+function renderChart(canvasId, pt, rows){
+  const m   = ER_META[currentErKey];
+  const col = platColor(pt);
   if(chartInst[canvasId]){ chartInst[canvasId].destroy(); delete chartInst[canvasId]; }
   if(!document.getElementById(canvasId)) return;
   const ctx = document.getElementById(canvasId).getContext('2d');
@@ -778,6 +869,14 @@ function buildPlatChart(canvasId, pt, data){
       }
     }
   });
+}
+
+function buildPlatChart(canvasId, pt, data){
+  const prefix = pt==='Instagram' ? 'IG' : 'TT';
+  const rows = data.filter(r=>(r.platform||'TikTok')===pt);
+  _platData[prefix] = rows;
+  initSliders(prefix, rows);
+  renderChart(canvasId, pt, rows);
 }
 
 function buildPlatCharts(data){
