@@ -192,6 +192,18 @@ a.vlink:hover{text-decoration:underline;}
 .slider-bound-label{width:22px;font-size:10px;color:#aaa;flex-shrink:0;text-align:right;}
 .slider-line input[type=range]{flex:1;height:3px;accent-color:var(--accent);cursor:pointer;margin:0;}
 .slider-bound-val{width:58px;font-size:10px;color:var(--accent);font-weight:600;text-align:right;flex-shrink:0;white-space:nowrap;}
+
+/* ── 매체 상세 헤더 + 상위N% 입력 ── */
+.detail-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
+.detail-title{font-size:14px;font-weight:700;color:var(--navy);}
+.er-topn-wrap{display:flex;align-items:center;gap:6px;background:#f0f1f7;border-radius:8px;padding:5px 12px;}
+.er-topn-label{font-size:12px;color:var(--sub);font-weight:600;white-space:nowrap;}
+.er-topn-input{width:48px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:700;padding:3px 6px;text-align:center;color:var(--accent);outline:none;-moz-appearance:textfield;}
+.er-topn-input::-webkit-outer-spin-button,.er-topn-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.er-topn-input:focus{border-color:var(--accent);}
+.er-topn-unit{font-size:12px;color:var(--sub);font-weight:600;}
+.plat-badge-tbl{display:inline-flex;align-items:center;gap:5px;}
+.plat-dot{display:inline-block;width:8px;height:8px;border-radius:50%;}
 </style>
 </head>
 <body>
@@ -336,7 +348,14 @@ a.vlink:hover{text-decoration:underline;}
   </div>
   <div id="detailContent">
     <div class="detail-section">
-      <div class="detail-title">매체 상세</div>
+      <div class="detail-section-header">
+        <div class="detail-title">매체 상세</div>
+        <div class="er-topn-wrap">
+          <span class="er-topn-label">ER 상위</span>
+          <input type="number" id="erTopNInput" class="er-topn-input" value="100" min="1" max="100" oninput="setErTopN(this.value)">
+          <span class="er-topn-unit">%</span>
+        </div>
+      </div>
       <div class="data-note" id="detailDataNote"></div>
       <div class="media-table-wrap" id="mediaSummaryRow"></div>
       <div class="er-filter-bar" id="erFilterBar">
@@ -756,6 +775,23 @@ const PLAT_COLORS = {
 };
 function platColor(pt){ return PLAT_COLORS[pt]||{bg:'rgba(92,107,192,0.55)',border:'#5c6bc0'}; }
 
+let erTopN = 100;
+
+function setErTopN(val){
+  const n = Math.min(100, Math.max(1, parseInt(val)||100));
+  erTopN = n;
+  const input = document.getElementById('erTopNInput');
+  if(input && input.value != n) input.value = n;
+  buildDetailCharts();
+}
+
+function topNRows(rows, n){
+  if(n >= 100) return rows;
+  const m = ER_META[currentErKey];
+  const sorted = [...rows].sort((a,b) => m.fn(b) - m.fn(a));
+  return sorted.slice(0, Math.max(1, Math.ceil(n / 100 * sorted.length)));
+}
+
 function buildDetailCharts() {
   const data = filtered.length ? filtered : allRows;
   const note = document.getElementById('detailDataNote');
@@ -771,19 +807,22 @@ function buildDetailCharts() {
   // 플랫폼 목록
   const platforms=[...new Set(data.map(r=>r.platform||'TikTok'))].sort();
 
-  // ── 매체 요약 테이블 ──
+  // ── 매체 요약 테이블 (ER 상위 N% 필터 적용) ──
   const tRows = platforms.map(pt=>{
-    const rows=data.filter(r=>(r.platform||'TikTok')===pt);
-    const n=rows.length;
+    const allPtRows = data.filter(r=>(r.platform||'TikTok')===pt);
+    const rows = topNRows(allPtRows, erTopN);
+    const n = rows.length;
+    const total = allPtRows.length;
     const avgV = avg(rows,r=>r.viewsN);
     const avgL = avg(rows,r=>erN(r.likesN,r.viewsN));
     const avgC = avg(rows,r=>erN(r.commentsN,r.viewsN));
     const avgS = avg(rows,r=>erN(r.sharesN,r.viewsN));
     const avgB = avg(rows,r=>erN(r.savesN,r.viewsN));
     const col  = platColor(pt);
+    const countLabel = erTopN >= 100 ? n : `${n} / ${total}`;
     return `<tr>
       <td><span class="plat-badge-tbl"><span class="plat-dot" style="background:${col.border}"></span>${pt}</span></td>
-      <td>${n}</td>
+      <td>${countLabel}</td>
       <td>${fmtN(Math.round(avgV))}</td>
       <td>${avgL.toFixed(2)}%</td>
       <td>${avgC.toFixed(2)}%</td>
@@ -794,7 +833,9 @@ function buildDetailCharts() {
   document.getElementById('mediaSummaryRow').innerHTML = `
     <table class="media-table">
       <thead><tr>
-        <th>매체</th><th>콘텐츠 수</th><th>평균 조회수</th>
+        <th>매체</th>
+        <th>콘텐츠 수${erTopN < 100 ? ` <span style="font-size:10px;font-weight:400;color:#999">(상위${erTopN}% / 전체)</span>` : ''}</th>
+        <th>평균 조회수</th>
         <th>ER(좋아요)</th><th>ER(댓글)</th><th>ER(공유)</th><th>ER(저장)</th>
       </tr></thead>
       <tbody>${tRows}</tbody>
@@ -817,8 +858,7 @@ function setErFilter(key){
   document.querySelectorAll('.er-filter-btn').forEach(b=>{
     b.classList.toggle('active', b.getAttribute('onclick').includes("'"+key+"'"));
   });
-  const data = filtered.length ? filtered : allRows;
-  buildPlatCharts(data);
+  buildDetailCharts();
 }
 
 let _platData = {};
