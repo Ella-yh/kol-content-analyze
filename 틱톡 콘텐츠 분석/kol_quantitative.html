@@ -161,6 +161,16 @@ a.vlink:hover{text-decoration:underline;}
 
 .toast{position:fixed;bottom:24px;right:24px;background:#323232;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:999;}
 .toast.show{opacity:1;transform:translateY(0);}
+.media-table-wrap{margin-bottom:28px;overflow-x:auto;}
+.media-table{width:100%;border-collapse:collapse;font-size:13px;}
+.media-table th{background:#f5f6fa;color:#555;font-weight:600;padding:10px 14px;text-align:center;border-bottom:2px solid #e8eaf0;white-space:nowrap;}
+.media-table th:first-child{text-align:left;}
+.media-table td{padding:11px 14px;text-align:center;border-bottom:1px solid #f0f1f7;color:var(--navy);}
+.media-table td:first-child{text-align:left;font-weight:600;}
+.media-table tr:last-child td{border-bottom:none;}
+.media-table tr:hover td{background:#fafbff;}
+.plat-badge-tbl{display:inline-flex;align-items:center;gap:6px;}
+.plat-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
 </style>
 </head>
 <body>
@@ -173,8 +183,8 @@ a.vlink:hover{text-decoration:underline;}
     <span class="badge" id="totalBadge">0개</span>
   </div>
   <div class="qtabs">
-    <button class="qtab-btn active" id="qtabBtn1" onclick="switchQuantTab(1)">📋 정량 분석 RD</button>
-    <button class="qtab-btn"        id="qtabBtn2" onclick="switchQuantTab(2)">📊 상세 분석 (매체/브랜드별)</button>
+    <button class="qtab-btn active" id="qtabBtn1" onclick="switchQuantTab(1)">정량 분석 RD</button>
+    <button class="qtab-btn"        id="qtabBtn2" onclick="switchQuantTab(2)">상세 분석 (매체/브랜드별)</button>
   </div>
 </div>
 
@@ -305,9 +315,9 @@ a.vlink:hover{text-decoration:underline;}
   </div>
   <div id="detailContent">
     <div class="detail-section">
-      <div class="detail-title">📱 매체 상세</div>
+      <div class="detail-title">매체 상세</div>
       <div class="data-note" id="detailDataNote"></div>
-      <div class="media-summary-row" id="mediaSummaryRow"></div>
+      <div class="media-table-wrap" id="mediaSummaryRow"></div>
       <div class="chart-grid">
         <div class="chart-box"><canvas id="chartErL"></canvas></div>
         <div class="chart-box"><canvas id="chartErC"></canvas></div>
@@ -666,8 +676,8 @@ function buildDetailCharts() {
   // 플랫폼 목록
   const platforms=[...new Set(data.map(r=>r.platform||'TikTok'))].sort();
 
-  // ── 매체 요약 카드 ──
-  document.getElementById('mediaSummaryRow').innerHTML = platforms.map(pt=>{
+  // ── 매체 요약 테이블 ──
+  const tRows = platforms.map(pt=>{
     const rows=data.filter(r=>(r.platform||'TikTok')===pt);
     const n=rows.length;
     const avgV = avg(rows,r=>r.viewsN);
@@ -675,20 +685,25 @@ function buildDetailCharts() {
     const avgC = avg(rows,r=>erN(r.commentsN,r.viewsN));
     const avgS = avg(rows,r=>erN(r.sharesN,r.viewsN));
     const avgB = avg(rows,r=>erN(r.savesN,r.viewsN));
-    const icon = pt==='Instagram'?'📷':'🎵';
     const col  = platColor(pt);
-    return `<div class="ps-card" style="border-top:3px solid ${col.border}">
-      <div class="ps-header">${icon} ${pt}</div>
-      <div class="ps-grid">
-        <div class="ps-stat"><span class="ps-label">콘텐츠 수</span><span class="ps-val">${n}</span></div>
-        <div class="ps-stat"><span class="ps-label">평균 조회수</span><span class="ps-val">${fmtN(Math.round(avgV))}</span></div>
-        <div class="ps-stat"><span class="ps-label">ER(좋아요)</span><span class="ps-val">${avgL.toFixed(2)}%</span></div>
-        <div class="ps-stat"><span class="ps-label">ER(댓글)</span><span class="ps-val">${avgC.toFixed(2)}%</span></div>
-        <div class="ps-stat"><span class="ps-label">ER(공유)</span><span class="ps-val">${avgS.toFixed(2)}%</span></div>
-        <div class="ps-stat"><span class="ps-label">ER(저장)</span><span class="ps-val">${avgB.toFixed(2)}%</span></div>
-      </div>
-    </div>`;
+    return `<tr>
+      <td><span class="plat-badge-tbl"><span class="plat-dot" style="background:${col.border}"></span>${pt}</span></td>
+      <td>${n}</td>
+      <td>${fmtN(Math.round(avgV))}</td>
+      <td>${avgL.toFixed(2)}%</td>
+      <td>${avgC.toFixed(2)}%</td>
+      <td>${avgS.toFixed(2)}%</td>
+      <td>${avgB.toFixed(2)}%</td>
+    </tr>`;
   }).join('');
+  document.getElementById('mediaSummaryRow').innerHTML = `
+    <table class="media-table">
+      <thead><tr>
+        <th>매체</th><th>콘텐츠 수</th><th>평균 조회수</th>
+        <th>ER(좋아요)</th><th>ER(댓글)</th><th>ER(공유)</th><th>ER(저장)</th>
+      </tr></thead>
+      <tbody>${tRows}</tbody>
+    </table>`;
 
   // ── 산점도 4개 ──
   const metrics=[
