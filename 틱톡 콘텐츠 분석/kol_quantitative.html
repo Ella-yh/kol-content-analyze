@@ -374,6 +374,7 @@ a.vlink:hover{text-decoration:underline;}
         <button class="er-filter-btn" onclick="setErFilter('erC')">댓글</button>
         <button class="er-filter-btn" onclick="setErFilter('erS')">공유</button>
         <button class="er-filter-btn" onclick="setErFilter('erB')">저장</button>
+        <button class="er-filter-btn" onclick="setErFilter('erSB')">공유+저장</button>
       </div>
       <div class="chart-duo">
         <div class="chart-duo-box">
@@ -787,13 +788,14 @@ const PLAT_COLORS = {
 function platColor(pt){ return PLAT_COLORS[pt]||{bg:'rgba(92,107,192,0.55)',border:'#5c6bc0'}; }
 
 // ── ER 상위 N% 테이블 상태 ──
-const ER_TOPN_KEYS = ['erL','erC','erS','erB'];
-const ER_TOPN_NAMES = {erL:'좋아요',erC:'댓글',erS:'공유',erB:'저장'};
+const ER_TOPN_KEYS = ['erL','erC','erS','erB','erSB'];
+const ER_TOPN_NAMES = {erL:'좋아요',erC:'댓글',erS:'공유',erB:'저장',erSB:'공유+저장'};
 const ER_TOPN_FNS = {
-  erL: r=>erN(r.likesN,r.viewsN),
-  erC: r=>erN(r.commentsN,r.viewsN),
-  erS: r=>erN(r.sharesN,r.viewsN),
-  erB: r=>erN(r.savesN,r.viewsN),
+  erL:  r=>erN(r.likesN,r.viewsN),
+  erC:  r=>erN(r.commentsN,r.viewsN),
+  erS:  r=>erN(r.sharesN,r.viewsN),
+  erB:  r=>erN(r.savesN,r.viewsN),
+  erSB: r=>erN(r.sharesN+r.savesN,r.viewsN),
 };
 let _topNState = {};
 let _topNData  = [];
@@ -871,12 +873,13 @@ function buildDetailCharts() {
   const tRows = platforms.map(pt=>{
     const rows=data.filter(r=>(r.platform||'TikTok')===pt);
     const n=rows.length;
-    const avgV = avg(rows,r=>r.viewsN);
-    const avgL = avg(rows,r=>erN(r.likesN,r.viewsN));
-    const avgC = avg(rows,r=>erN(r.commentsN,r.viewsN));
-    const avgS = avg(rows,r=>erN(r.sharesN,r.viewsN));
-    const avgB = avg(rows,r=>erN(r.savesN,r.viewsN));
-    const col  = platColor(pt);
+    const avgV  = avg(rows,r=>r.viewsN);
+    const avgL  = avg(rows,r=>erN(r.likesN,r.viewsN));
+    const avgC  = avg(rows,r=>erN(r.commentsN,r.viewsN));
+    const avgS  = avg(rows,r=>erN(r.sharesN,r.viewsN));
+    const avgB  = avg(rows,r=>erN(r.savesN,r.viewsN));
+    const avgSB = avg(rows,r=>erN(r.sharesN+r.savesN,r.viewsN));
+    const col   = platColor(pt);
     return `<tr>
       <td><span class="plat-badge-tbl"><span class="plat-dot" style="background:${col.border}"></span>${pt}</span></td>
       <td>${n}</td>
@@ -885,13 +888,14 @@ function buildDetailCharts() {
       <td>${avgC.toFixed(2)}%</td>
       <td>${avgS.toFixed(2)}%</td>
       <td>${avgB.toFixed(2)}%</td>
+      <td>${avgSB.toFixed(2)}%</td>
     </tr>`;
   }).join('');
   document.getElementById('mediaSummaryRow').innerHTML = `
     <table class="media-table">
       <thead><tr>
         <th>매체</th><th>콘텐츠 수</th><th>평균 조회수</th>
-        <th>ER(좋아요)</th><th>ER(댓글)</th><th>ER(공유)</th><th>ER(저장)</th>
+        <th>ER(좋아요)</th><th>ER(댓글)</th><th>ER(공유)</th><th>ER(저장)</th><th>ER(공유+저장)</th>
       </tr></thead>
       <tbody>${tRows}</tbody>
     </table>`;
@@ -909,6 +913,7 @@ const ER_META = {
   erC:{label:'ER(댓글)',   fn:r=>erN(r.commentsN,r.viewsN)},
   erS:{label:'ER(공유)',   fn:r=>erN(r.sharesN,r.viewsN)},
   erB:{label:'ER(저장)',   fn:r=>erN(r.savesN,r.viewsN)},
+  erSB:{label:'ER(공유+저장)', fn:r=>erN(r.sharesN+r.savesN,r.viewsN)},
 };
 
 function setErFilter(key){
