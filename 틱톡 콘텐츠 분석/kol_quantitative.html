@@ -198,26 +198,33 @@ a.vlink:hover{text-decoration:underline;}
 .plat-badge-tbl{display:inline-flex;align-items:center;gap:5px;}
 .plat-dot{display:inline-block;width:8px;height:8px;border-radius:50%;}
 
-/* ── ER 상위 N% 테이블 ── */
+/* ── ER 복합 조건 카드 ── */
 .er-topn-section{margin-top:24px;}
-.er-topn-section-label{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.er-topn-section-label{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
 .er-topn-section-label::before{content:'';display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px;}
-.er-topn-table-wrap{overflow-x:auto;}
-.er-topn-table{width:100%;border-collapse:collapse;font-size:13px;}
-.er-topn-table th,.er-topn-table td{padding:10px 14px;border-bottom:1px solid var(--border);}
-.er-topn-table th{font-size:12px;font-weight:600;color:var(--sub);background:#f7f8ff;text-align:center;}
-.er-topn-table th:first-child{text-align:left;}
-.er-topn-table td{text-align:center;vertical-align:middle;}
-.er-topn-table td:first-child{text-align:left;}
-.er-topn-table tr:last-child td{border-bottom:none;}
-.topn-cell{display:flex;flex-direction:column;align-items:center;gap:4px;}
-.topn-ctrl{display:inline-flex;align-items:center;gap:3px;}
-.topn-ctrl span{font-size:11px;color:#aaa;}
-.topn-ctrl input{width:38px;font-size:11px;font-weight:700;text-align:center;padding:2px 4px;border:1px solid var(--border);border-radius:6px;color:var(--accent);outline:none;-moz-appearance:textfield;}
-.topn-ctrl input::-webkit-outer-spin-button,.topn-ctrl input::-webkit-inner-spin-button{-webkit-appearance:none;}
-.topn-ctrl input:focus{border-color:var(--accent);}
-.topn-val{font-size:14px;font-weight:700;color:var(--navy);}
-.topn-cnt{font-size:10px;color:#aaa;}
+.topn-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:700px){.topn-cards{grid-template-columns:1fr;}}
+.topn-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+.topn-card-header{display:flex;align-items:center;gap:7px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.topn-card-title{font-size:13px;font-weight:700;color:var(--navy);}
+.topn-cond-list{display:flex;flex-direction:column;gap:7px;margin-bottom:14px;}
+.topn-cond-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;border-radius:8px;background:#f7f8ff;transition:background .12s;}
+.topn-cond-row.on{background:#eef0fa;}
+.topn-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;flex:1;}
+.topn-toggle input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex-shrink:0;}
+.topn-toggle-label{font-size:12px;font-weight:600;color:#666;}
+.topn-cond-row.on .topn-toggle-label{color:var(--navy);}
+.topn-n-ctrl{display:flex;align-items:center;gap:3px;opacity:.35;pointer-events:none;transition:opacity .12s;}
+.topn-n-ctrl.enabled{opacity:1;pointer-events:auto;}
+.topn-n-ctrl span{font-size:11px;color:#aaa;}
+.topn-n-ctrl input{width:38px;font-size:11px;font-weight:700;text-align:center;padding:2px 5px;border:1px solid var(--border);border-radius:6px;color:var(--accent);outline:none;-moz-appearance:textfield;}
+.topn-n-ctrl input::-webkit-outer-spin-button,.topn-n-ctrl input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.topn-n-ctrl input:focus{border-color:var(--accent);}
+.topn-result{border-top:1px solid var(--border);padding-top:10px;font-size:12px;color:#888;text-align:right;}
+.topn-result strong{font-size:15px;font-weight:700;color:var(--accent);}
+.topn-hint{color:#bbb;font-size:12px;}
+.topn-result-avg{margin-top:6px;font-size:11px;color:#aaa;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}
+.topn-result-avg span{background:#f0f1f7;border-radius:99px;padding:2px 8px;}
 </style>
 </head>
 <body>
@@ -787,7 +794,7 @@ const PLAT_COLORS = {
 };
 function platColor(pt){ return PLAT_COLORS[pt]||{bg:'rgba(92,107,192,0.55)',border:'#5c6bc0'}; }
 
-// ── ER 상위 N% 테이블 상태 ──
+// ── ER 복합 조건 (AND) 상태 ──
 const ER_TOPN_KEYS = ['erL','erC','erS','erB','erSB'];
 const ER_TOPN_NAMES = {erL:'좋아요',erC:'댓글',erS:'공유',erB:'저장',erSB:'공유+저장'};
 const ER_TOPN_FNS = {
@@ -797,62 +804,99 @@ const ER_TOPN_FNS = {
   erB:  r=>erN(r.savesN,r.viewsN),
   erSB: r=>erN(r.sharesN+r.savesN,r.viewsN),
 };
-let _topNState = {};
-let _topNData  = [];
+let _multiFilter = {};  // { [platform]: { [key]: {active:bool, n:number} } }
+let _topNData = [];
 
-function _topNRows(arr, key, n){
-  if(n >= 100) return arr;
-  const sorted = [...arr].sort((a,b) => ER_TOPN_FNS[key](b) - ER_TOPN_FNS[key](a));
-  return sorted.slice(0, Math.max(1, Math.ceil(n / 100 * sorted.length)));
+function _initMultiFilter(pt){
+  if(!_multiFilter[pt]){
+    _multiFilter[pt] = {};
+    ER_TOPN_KEYS.forEach(k=>{ _multiFilter[pt][k]={active:false,n:20}; });
+  }
 }
 
-function changeErTopN(pt, key, val){
-  const n = Math.min(100, Math.max(1, parseInt(val)||100));
-  if(!_topNState[pt]) _topNState[pt] = {};
-  _topNState[pt][key] = n;
+function _erThreshold(ptRows, key, n){
+  // 상위 n%의 최솟값 (해당 값 이상이면 상위 n%에 포함)
+  const sorted = [...ptRows].sort((a,b)=>ER_TOPN_FNS[key](b)-ER_TOPN_FNS[key](a));
+  const idx = Math.max(0, Math.ceil(n/100*sorted.length)-1);
+  return sorted[idx] ? ER_TOPN_FNS[key](sorted[idx]) : 0;
+}
+
+function _applyMultiFilter(ptRows, pt){
+  const activeKeys = ER_TOPN_KEYS.filter(k=>_multiFilter[pt]?.[k]?.active);
+  if(!activeKeys.length) return [];
+  const thresholds = {};
+  activeKeys.forEach(k=>{
+    thresholds[k] = _erThreshold(ptRows, k, _multiFilter[pt][k].n);
+  });
+  return ptRows.filter(r=>activeKeys.every(k=>ER_TOPN_FNS[k](r)>=thresholds[k]));
+}
+
+function toggleMultiFilter(pt, key, checked){
+  _initMultiFilter(pt);
+  _multiFilter[pt][key].active = checked;
+  buildErTopNTable(_topNData);
+}
+
+function changeMultiFilterN(pt, key, val){
+  _initMultiFilter(pt);
+  _multiFilter[pt][key].n = Math.min(100, Math.max(1, parseInt(val)||20));
   buildErTopNTable(_topNData);
 }
 
 function buildErTopNTable(data){
   _topNData = data;
   const platforms = [...new Set(data.map(r=>r.platform||'TikTok'))].sort();
-  // 상태 초기화 (없는 경우만)
-  platforms.forEach(pt=>{
-    if(!_topNState[pt]) _topNState[pt]={};
-    ER_TOPN_KEYS.forEach(k=>{ if(_topNState[pt][k]===undefined) _topNState[pt][k]=100; });
-  });
-  const thead = `<tr>
-    <th>매체</th>
-    ${ER_TOPN_KEYS.map(k=>`<th>ER(${ER_TOPN_NAMES[k]})</th>`).join('')}
-  </tr>`;
-  const tbody = platforms.map(pt=>{
+  platforms.forEach(pt=>_initMultiFilter(pt));
+
+  const cards = platforms.map(pt=>{
     const ptRows = data.filter(r=>(r.platform||'TikTok')===pt);
     const col = platColor(pt);
-    const cells = ER_TOPN_KEYS.map(k=>{
-      const n = _topNState[pt][k];
-      const filtered = _topNRows(ptRows, k, n);
-      const val = filtered.length ? filtered.reduce((s,r)=>s+ER_TOPN_FNS[k](r),0)/filtered.length : 0;
-      const safeId = pt.replace(/[^a-zA-Z0-9]/g,'_');
-      return `<td>
-        <div class="topn-cell">
-          <div class="topn-ctrl">
-            <span>상위</span>
-            <input type="number" min="1" max="100" value="${n}"
-              oninput="changeErTopN('${pt}','${k}',this.value)">
-            <span>%</span>
-          </div>
-          <div class="topn-val">${val.toFixed(2)}%</div>
-          <div class="topn-cnt">${filtered.length} / ${ptRows.length}건</div>
+    const activeKeys = ER_TOPN_KEYS.filter(k=>_multiFilter[pt][k].active);
+    const filtered = _applyMultiFilter(ptRows, pt);
+
+    const condRows = ER_TOPN_KEYS.map(k=>{
+      const s = _multiFilter[pt][k];
+      const safeKey = k;
+      return `<div class="topn-cond-row${s.active?' on':''}">
+        <label class="topn-toggle">
+          <input type="checkbox" ${s.active?'checked':''}
+            onchange="toggleMultiFilter('${pt}','${safeKey}',this.checked)">
+          <span class="topn-toggle-label">ER(${ER_TOPN_NAMES[k]})</span>
+        </label>
+        <div class="topn-n-ctrl${s.active?' enabled':''}">
+          <span>상위</span>
+          <input type="number" min="1" max="100" value="${s.n}"
+            ${s.active?'':'disabled'}
+            oninput="changeMultiFilterN('${pt}','${safeKey}',this.value)">
+          <span>%</span>
         </div>
-      </td>`;
+      </div>`;
     }).join('');
-    return `<tr>
-      <td><span class="plat-badge-tbl"><span class="plat-dot" style="background:${col.border}"></span>${pt}</span></td>
-      ${cells}
-    </tr>`;
+
+    let resultHtml;
+    if(!activeKeys.length){
+      resultHtml = '<span class="topn-hint">조건을 선택하세요</span>';
+    } else {
+      const avgParts = activeKeys.map(k=>{
+        const avgVal = filtered.length
+          ? filtered.reduce((s,r)=>s+ER_TOPN_FNS[k](r),0)/filtered.length : 0;
+        return `<span>ER(${ER_TOPN_NAMES[k]}) 평균 ${avgVal.toFixed(2)}%</span>`;
+      }).join('');
+      resultHtml = `<strong>${filtered.length}건</strong> / 전체 ${ptRows.length}건 충족
+        <div class="topn-result-avg">${avgParts}</div>`;
+    }
+
+    return `<div class="topn-card">
+      <div class="topn-card-header">
+        <span class="plat-dot" style="background:${col.border}"></span>
+        <span class="topn-card-title">${pt}</span>
+      </div>
+      <div class="topn-cond-list">${condRows}</div>
+      <div class="topn-result">${resultHtml}</div>
+    </div>`;
   }).join('');
-  document.getElementById('erTopNTable').innerHTML =
-    `<table class="er-topn-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+
+  document.getElementById('erTopNTable').innerHTML = `<div class="topn-cards">${cards}</div>`;
 }
 
 function buildDetailCharts() {
