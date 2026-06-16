@@ -225,6 +225,12 @@ a.vlink:hover{text-decoration:underline;}
 .topn-hint{color:#bbb;font-size:12px;}
 .topn-result-avg{margin-top:6px;font-size:11px;color:#aaa;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}
 .topn-result-avg span{background:#f0f1f7;border-radius:99px;padding:2px 8px;}
+
+/* ── 상세 조건 적용 버튼 ── */
+.btn-detail{background:#f0f1fa;color:var(--accent);border:1.5px solid var(--accent);border-radius:8px;font-size:12px;font-weight:700;padding:6px 13px;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.btn-detail:hover{background:var(--accent);color:#fff;}
+.fb-detail-badge{display:none;font-size:11px;font-weight:700;background:#e8eaf6;color:var(--accent);padding:2px 9px;border-radius:99px;white-space:nowrap;}
+.fb-detail-badge.on{display:inline-flex;align-items:center;gap:4px;}
 </style>
 </head>
 <body>
@@ -286,6 +292,9 @@ a.vlink:hover{text-decoration:underline;}
     <button class="btn-accent" onclick="applyCondFilter()">필터링</button>
     <button class="btn-ghost" onclick="clearCondFilter()">해제</button>
     <span class="fb-active" id="fbActive">● 적용 중</span>
+    <div class="fb-divider"></div>
+    <button class="btn-detail" onclick="applyDetailFilter()">상세 분석 조건 적용</button>
+    <span class="fb-detail-badge" id="fbDetailBadge">● 상세 조건 적용 중</span>
   </div>
 
   <!-- ── 통계 카드 (6개, 필터 반응형) ── -->
@@ -532,10 +541,58 @@ function applyCondFilter(){
 function clearCondFilter(){
   condRows=[...allRows]; condActive=false;
   document.getElementById('fbActive').classList.remove('on');
+  document.getElementById('fbDetailBadge').classList.remove('on');
   // 입력값 초기화
   ['fViewsMin','fViewsMax','fErL','fErC','fErS','fErB'].forEach(id=>{document.getElementById(id).value='';});
   applySearch();
   showToast('필터링 해제됨');
+}
+
+function applyDetailFilter(){
+  const platforms = [...new Set(allRows.map(r=>r.platform||'TikTok'))];
+
+  // 활성 조건 확인
+  const hasAny = platforms.some(pt=>
+    ER_TOPN_KEYS.some(k=>_multiFilter[pt]?.[k]?.active)
+  );
+  if(!hasAny){
+    showToast('상세 분석 탭에서 먼저 조건을 설정하세요');
+    return;
+  }
+
+  // 플랫폼별 ER 임계값 계산
+  const thresholds = {};
+  platforms.forEach(pt=>{
+    thresholds[pt]={};
+    const ptRows = allRows.filter(r=>(r.platform||'TikTok')===pt);
+    ER_TOPN_KEYS.forEach(k=>{
+      if(_multiFilter[pt]?.[k]?.active)
+        thresholds[pt][k] = _erThreshold(ptRows, k, _multiFilter[pt][k].n);
+    });
+  });
+
+  // 조건 AND 필터링
+  condRows = allRows.filter(r=>{
+    const pt = r.platform||'TikTok';
+    return ER_TOPN_KEYS
+      .filter(k=>_multiFilter[pt]?.[k]?.active)
+      .every(k=>ER_TOPN_FNS[k](r) >= thresholds[pt][k]);
+  });
+
+  condActive = true;
+  document.getElementById('fbActive').classList.add('on');
+  document.getElementById('fbDetailBadge').classList.add('on');
+  applySearch();
+
+  // 적용된 조건 요약
+  const summary = platforms
+    .map(pt=>{
+      const active = ER_TOPN_KEYS.filter(k=>_multiFilter[pt]?.[k]?.active);
+      if(!active.length) return null;
+      return `${pt}: ${active.map(k=>`ER(${ER_TOPN_NAMES[k]}) 상위${_multiFilter[pt][k].n}%`).join(' & ')}`;
+    })
+    .filter(Boolean).join(' / ');
+  showToast(`✅ ${condRows.length}개 추출 — ${summary}`);
 }
 
 // ════════ 검색 필터 ════════
