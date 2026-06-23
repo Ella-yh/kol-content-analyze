@@ -516,7 +516,20 @@ function makeOrUpdateChart(platform,minViews,pct){
           }
         },
         scales:{
-          x:{type:'linear',title:{display:true,text:'조회수'},ticks:{callback:v=>fmtN(v)}},
+          x:{
+            type:'logarithmic',
+            title:{display:true,text:'조회수 (log scale)'},
+            ticks:{
+              callback(v){
+                const ticks=[1000,3000,10000,30000,100000,300000,1000000,3000000];
+                return ticks.includes(v)?fmtN(v):undefined;
+              }
+            },
+            afterBuildTicks(axis){
+              const ticks=[1000,3000,10000,30000,100000,300000,1000000,3000000];
+              axis.ticks=ticks.map(v=>({value:v}));
+            }
+          },
           y:{type:'linear',title:{display:true,text:yLabel},ticks:{callback:v=>v.toFixed(2)+'%'}}
         },
         quadrantMed:{medViews,medEr},
