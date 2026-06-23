@@ -57,6 +57,8 @@ body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backgr
 .dl-btn{ font-size:11px; font-weight:700; color:#5c6bc0; background:white; border:1.5px solid #5c6bc0; border-radius:7px; padding:3px 10px; cursor:pointer; white-space:nowrap; transition:all .15s; }
 .dl-btn:hover{ background:#5c6bc0; color:white; }
 .star-table-wrap{ overflow-x:auto; max-height:320px; overflow-y:auto; }
+.star-table tbody tr{ cursor:pointer; transition:background .1s; }
+.star-table tbody tr:hover{ background:#f0f4ff; }
 .star-table{ width:100%; border-collapse:collapse; font-size:11px; }
 .star-table th{ position:sticky; top:0; z-index:1; background:#f4f5fb; padding:7px 10px; text-align:right; font-weight:700; color:#666; border-bottom:1px solid #e8eaf0; white-space:nowrap; cursor:pointer; user-select:none; transition:color .15s; }
 .star-table th:first-child,.star-table th:nth-child(2),.star-table th:nth-child(3){ text-align:left; }
@@ -267,6 +269,15 @@ const sortState = { tt:{col:'views',dir:-1}, ig:{col:'views',dir:-1} };
 const starData = { tt:[], ig:[] };
 const lowData  = { tt:[], ig:[] };
 const lowListOpen = { tt:false, ig:false };
+const _listRowCache = { star:{tt:[],ig:[]}, low:{tt:[],ig:[]} };
+
+function _openFromList(type,prefix,idx){
+  const row=_listRowCache[type][prefix][idx];
+  if(!row) return;
+  const platform=prefix==='tt'?'TT':'IG';
+  const med=prefix==='tt'?ttMed:igMed;
+  showVideoPopup(row,platform,med.v,med.e);
+}
 
 const COLS = [
   {key:'_idx',    label:'#'},
@@ -388,10 +399,11 @@ function renderStarRows(prefix){
     const bv=col==='name'?(b[col]||'').toLowerCase():(b[col]||0);
     return av<bv?dir:av>bv?-dir:0;
   });
+  _listRowCache.star[prefix]=rows;
   const tbody=document.getElementById(prefix+'-star-tbody');
   if(!rows.length){tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:#aaa;padding:20px">해당 없음</td></tr>';return;}
   tbody.innerHTML=rows.map((r,i)=>`
-    <tr>
+    <tr onclick="_openFromList('star','${prefix}',${i})" title="클릭하면 영상 팝업">
       <td style="text-align:left;color:#aaa">${i+1}</td>
       <td style="text-align:left"><span class="kol-name">@${r.name}</span></td>
       <td style="text-align:left">${r.url?`<a class="video-link" href="${r.url}" target="_blank">🔗 링크</a>`:'-'}</td>
@@ -423,10 +435,11 @@ function renderLowTable(prefix,lows){
 function renderLowRows(prefix){
   const isTT=prefix==='tt';
   const rows=[...lowData[prefix]].sort((a,b)=>b.views-a.views);
+  _listRowCache.low[prefix]=rows;
   const tbody=document.getElementById(prefix+'-low-tbody');
   if(!rows.length){tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:#aaa;padding:20px">해당 없음</td></tr>';return;}
   tbody.innerHTML=rows.map((r,i)=>`
-    <tr>
+    <tr onclick="_openFromList('low','${prefix}',${i})" title="클릭하면 영상 팝업">
       <td style="text-align:left;color:#aaa">${i+1}</td>
       <td style="text-align:left"><span class="kol-name">@${r.name}</span></td>
       <td style="text-align:left">${r.url?`<a class="video-link" href="${r.url}" target="_blank">🔗 링크</a>`:'-'}</td>
