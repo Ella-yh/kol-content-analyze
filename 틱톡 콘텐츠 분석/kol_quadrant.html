@@ -51,6 +51,7 @@ body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backgr
 .star-section{ border-top:2px solid #f0f1f7; }
 .star-section-head{ padding:10px 16px; background:#f9fafe; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; }
 .star-section-title{ font-size:12px; font-weight:700; color:#22c55e; display:flex; align-items:center; gap:6px; }
+.low-section-title{ font-size:12px; font-weight:700; color:#94a3b8; display:flex; align-items:center; gap:6px; }
 .star-head-right{ display:flex; align-items:center; gap:10px; }
 .star-toggle{ font-size:11px; color:#aaa; }
 .dl-btn{ font-size:11px; font-weight:700; color:#5c6bc0; background:white; border:1.5px solid #5c6bc0; border-radius:7px; padding:3px 10px; cursor:pointer; white-space:nowrap; transition:all .15s; }
@@ -179,6 +180,24 @@ body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backgr
         </div>
       </div>
     </div>
+    <!-- 저성과 리스트 -->
+    <div class="star-section">
+      <div class="star-section-head" onclick="toggleLowList('tt')">
+        <div class="low-section-title">💤 저성과 콘텐츠 리스트 <span id="tt-low-cnt" style="color:#aaa;font-weight:400"></span></div>
+        <div class="star-head-right" onclick="event.stopPropagation()">
+          <button class="dl-btn" onclick="downloadLowCSV('tt')">📥 다운로드</button>
+          <span class="star-toggle" id="tt-low-toggle" onclick="toggleLowList('tt')">▼ 펼치기</span>
+        </div>
+      </div>
+      <div id="tt-low-body" style="display:none">
+        <div class="star-table-wrap">
+          <table class="star-table">
+            <thead><tr id="tt-low-thead"></tr></thead>
+            <tbody id="tt-low-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Instagram -->
@@ -218,6 +237,24 @@ body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backgr
         </div>
       </div>
     </div>
+    <!-- 저성과 리스트 -->
+    <div class="star-section">
+      <div class="star-section-head" onclick="toggleLowList('ig')">
+        <div class="low-section-title">💤 저성과 콘텐츠 리스트 <span id="ig-low-cnt" style="color:#aaa;font-weight:400"></span></div>
+        <div class="star-head-right" onclick="event.stopPropagation()">
+          <button class="dl-btn" onclick="downloadLowCSV('ig')">📥 다운로드</button>
+          <span class="star-toggle" id="ig-low-toggle" onclick="toggleLowList('ig')">▼ 펼치기</span>
+        </div>
+      </div>
+      <div id="ig-low-body" style="display:none">
+        <div class="star-table-wrap">
+          <table class="star-table">
+            <thead><tr id="ig-low-thead"></tr></thead>
+            <tbody id="ig-low-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -228,6 +265,8 @@ let currentPct = 50;
 
 const sortState = { tt:{col:'views',dir:-1}, ig:{col:'views',dir:-1} };
 const starData = { tt:[], ig:[] };
+const lowData  = { tt:[], ig:[] };
+const lowListOpen = { tt:false, ig:false };
 
 const COLS = [
   {key:'_idx',    label:'#'},
@@ -370,15 +409,62 @@ function renderStarTable(prefix,stars){
   starData[prefix]=stars;buildThead(prefix);renderStarRows(prefix);
 }
 
+function toggleLowList(prefix){
+  lowListOpen[prefix]=!lowListOpen[prefix];
+  document.getElementById(prefix+'-low-body').style.display=lowListOpen[prefix]?'block':'none';
+  document.getElementById(prefix+'-low-toggle').textContent=lowListOpen[prefix]?'▲ 접기':'▼ 펼치기';
+}
+
+function renderLowTable(prefix,lows){
+  document.getElementById(prefix+'-low-cnt').textContent='('+lows.length+'개)';
+  lowData[prefix]=lows;renderLowRows(prefix);
+}
+
+function renderLowRows(prefix){
+  const isTT=prefix==='tt';
+  const rows=[...lowData[prefix]].sort((a,b)=>b.views-a.views);
+  const tbody=document.getElementById(prefix+'-low-tbody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:#aaa;padding:20px">해당 없음</td></tr>';return;}
+  tbody.innerHTML=rows.map((r,i)=>`
+    <tr>
+      <td style="text-align:left;color:#aaa">${i+1}</td>
+      <td style="text-align:left"><span class="kol-name">@${r.name}</span></td>
+      <td style="text-align:left">${r.url?`<a class="video-link" href="${r.url}" target="_blank">🔗 링크</a>`:'-'}</td>
+      <td>${fmtN(r.views)}</td><td>${fmtN(r.likes)}</td><td>${fmtN(r.comments)}</td>
+      <td>${fmtN(r.shares)}</td><td>${fmtN(r.saves)}</td>
+      <td>${r.er_l.toFixed(3)}%</td>
+      <td class="${!isTT?'er-main':''}">${r.er_c.toFixed(3)}%</td>
+      <td>${r.er_s.toFixed(3)}%</td><td>${r.er_b.toFixed(3)}%</td>
+      <td class="${isTT?'er-main':''}">${r.er_sb.toFixed(3)}%</td>
+    </tr>`).join('');
+}
+
+function downloadLowCSV(prefix){
+  const platform=prefix==='tt'?'TikTok':'Instagram';
+  const rows=lowData[prefix];
+  if(!rows.length){alert('저성과 콘텐츠가 없습니다.');return;}
+  const esc=v=>{const s=String(v??'');return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:`${s}`;};
+  const headers=['KOL','영상URL','프로젝트','팔로워','조회수','좋아요','댓글','공유','저장','ER(좋아요)%','ER(댓글)%','ER(공유)%','ER(저장)%','ER(공유+저장)%'];
+  const lines=[headers.join(','),...rows.map(r=>[r.name,r.url,r.project,r.followers,r.views,r.likes,r.comments,r.shares,r.saves,r.er_l,r.er_c,r.er_s,r.er_b,r.er_sb].map(esc).join(','))];
+  const blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`KOL_어노브_저성과_${platform}_상위${currentPct}pct.csv`;
+  a.click();
+}
+
 function updateCounts(pts,medViews,medEr,prefix,rawRows){
-  let q1=0,q2=0,q3=0,q4=0;const stars=[];
+  let q1=0,q2=0,q3=0,q4=0;const stars=[],lows=[];
   pts.forEach((p,i)=>{
     const hi=p.x>=medViews,hiEr=p.y>=medEr;
     if(hi&&hiEr){q1++;stars.push(rawRows[i]);}
-    else if(!hi&&hiEr)q2++;else if(hi&&!hiEr)q4++;else q3++;
+    else if(!hi&&hiEr)q2++;
+    else if(hi&&!hiEr)q4++;
+    else{q3++;lows.push(rawRows[i]);}
   });
   ['q1','q2','q3','q4'].forEach((q,i)=>document.getElementById(prefix+'-'+q).textContent=[q1,q2,q3,q4][i]);
   renderStarTable(prefix,stars);
+  renderLowTable(prefix,lows);
 }
 
 function makeOrUpdateChart(platform,minViews,pct){
